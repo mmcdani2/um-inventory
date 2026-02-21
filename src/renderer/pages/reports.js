@@ -1,5 +1,9 @@
-﻿export async function mountReports() {
-  const btn = document.getElementById("repRefresh");
+﻿import { toCsv, downloadCsv } from "../utils/csv.js";
+
+export async function mountReports() {
+  const btnRefresh = document.getElementById("repRefresh");
+  const btnExpOn = document.getElementById("expOnhand");
+  const btnExpSo = document.getElementById("expSO");
 
   const onhandBody = document.querySelector("#repTable tbody");
   const repHint = document.getElementById("repHint");
@@ -11,6 +15,9 @@
   const paneOn = document.getElementById("repOnhand");
   const paneSo = document.getElementById("repSuggested");
 
+  let cacheOnhand = [];
+  let cacheSo = [];
+
   function setTab(id) {
     tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === id));
     paneOn.classList.toggle("hidden", id !== "onhand");
@@ -19,6 +26,8 @@
 
   async function loadOnhand() {
     const rows = await window.api.reportsOnHand();
+    cacheOnhand = rows;
+
     onhandBody.innerHTML = rows
       .map(
         (r) => `
@@ -34,6 +43,7 @@
     `,
       )
       .join("");
+
     repHint.textContent = rows.length
       ? `${rows.length} row(s)`
       : "No on-hand yet.";
@@ -41,6 +51,8 @@
 
   async function loadSuggested() {
     const rows = await window.api.reportsSuggestedOrders();
+    cacheSo = rows;
+
     soBody.innerHTML = rows
       .map(
         (r) => `
@@ -57,6 +69,7 @@
     `,
       )
       .join("");
+
     soHint.textContent = rows.length
       ? `${rows.length} item(s) need reorder`
       : "Nothing flagged for reorder.";
@@ -66,13 +79,48 @@
     await Promise.all([loadOnhand(), loadSuggested()]);
   }
 
-  tabs.forEach((t) => t.addEventListener("click", () => setTab(t.dataset.tab)));
-  btn.addEventListener("click", loadAll);
+  btnExpOn.addEventListener("click", () => {
+    const csv = toCsv(cacheOnhand, [
+      { key: "location_code", label: "Location Code" },
+      { key: "location_name", label: "Location Name" },
+      { key: "category", label: "Category" },
+      { key: "sku", label: "SKU" },
+      { key: "description", label: "Description" },
+      { key: "on_hand", label: "On Hand" },
+      { key: "unit", label: "Unit" },
+      { key: "updated_at", label: "Updated At" },
+    ]);
+    downloadCsv(`on_hand_${todayStamp()}.csv`, csv);
+  });
 
+  btnExpSo.addEventListener("click", () => {
+    const csv = toCsv(cacheSo, [
+      { key: "vendor", label: "Vendor" },
+      { key: "category", label: "Category" },
+      { key: "sku", label: "SKU" },
+      { key: "description", label: "Description" },
+      { key: "on_hand_total", label: "On Hand Total" },
+      { key: "reorder_point", label: "Reorder Point" },
+      { key: "reorder_qty", label: "Reorder Qty" },
+      { key: "unit", label: "Unit" },
+    ]);
+    downloadCsv(`suggested_order_${todayStamp()}.csv`, csv);
+  });
+
+  tabs.forEach((t) => t.addEventListener("click", () => setTab(t.dataset.tab)));
+  btnRefresh.addEventListener("click", loadAll);
   window.addEventListener("data:changed", loadAll);
 
   setTab("onhand");
   await loadAll();
+}
+
+function todayStamp() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}${mm}${dd}`;
 }
 
 function fmtNum(n) {
