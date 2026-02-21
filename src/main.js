@@ -61,6 +61,10 @@ app.whenReady().then(() => {
     return dbLayer.createLocation(db, loc);
   });
 
+  ipcMain.handle("receive:submit", (_evt, payload) => {
+    return dbLayer.receiveItem(db, payload);
+  });
+
   createWindow();
 
   app.on("activate", () => {

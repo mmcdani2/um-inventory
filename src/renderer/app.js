@@ -23,6 +23,11 @@ async function loadView(routeId) {
     await mod.mountHome();
   }
 
+  if (route.id === "receive") {
+    const mod = await import("./pages/receive.js");
+    await mod.mountReceive();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);

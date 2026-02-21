@@ -118,6 +118,65 @@ function createLocation(db, loc) {
   }
 }
 
+function receiveItem(db, payload) {
+  const user_initials = String(payload.user_initials || "")
+    .trim()
+    .toUpperCase();
+  const vendor = String(payload.vendor || "").trim();
+  const po_number = String(payload.po_number || "").trim();
+  const notes = String(payload.notes || "").trim();
+
+  const item_id = Number(payload.item_id);
+  const location_id = Number(payload.location_id);
+  const qty = Number(payload.qty);
+  const unit_cost = Number(payload.unit_cost || 0);
+
+  if (!user_initials) throw new Error("User initials required.");
+  if (!vendor) throw new Error("Vendor required.");
+  if (!Number.isFinite(item_id) || item_id <= 0)
+    throw new Error("Item required.");
+  if (!Number.isFinite(location_id) || location_id <= 0)
+    throw new Error("Location required.");
+  if (!Number.isFinite(qty) || qty <= 0) throw new Error("Qty must be > 0.");
+
+  const tx = db.transaction(() => {
+    const txRes = db
+      .prepare(
+        `
+      INSERT INTO transactions (type, user_initials, vendor, po_number, notes)
+      VALUES ('RECEIVE', ?, ?, ?, ?)
+    `,
+      )
+      .run(user_initials, vendor, po_number, notes);
+
+    const txId = txRes.lastInsertRowid;
+
+    db.prepare(
+      `
+      INSERT INTO transaction_lines (transaction_id, item_id, location_id, qty, unit_cost)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    ).run(txId, item_id, location_id, qty, unit_cost);
+
+    // Upsert balances
+    db.prepare(
+      `
+      INSERT INTO inventory_balances (item_id, location_id, on_hand)
+      VALUES (?, ?, ?)
+      ON CONFLICT(item_id, location_id)
+      DO UPDATE SET
+        on_hand = on_hand + excluded.on_hand,
+        updated_at = datetime('now')
+    `,
+    ).run(item_id, location_id, qty);
+
+    return txId;
+  });
+
+  const txId = tx();
+  return { transaction_id: txId };
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -126,5 +185,6 @@ module.exports = {
   listLocations,
   createItem,
   createLocation,
+  receiveItem,
 };
 

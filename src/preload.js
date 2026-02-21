@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("api", {
   itemsCreate: (item) => ipcRenderer.invoke("items:create", item),
   locationsList: () => ipcRenderer.invoke("locations:list"),
   locationsCreate: (loc) => ipcRenderer.invoke("locations:create", loc),
+  receiveSubmit: (payload) => ipcRenderer.invoke("receive:submit", payload),
 });
 
 

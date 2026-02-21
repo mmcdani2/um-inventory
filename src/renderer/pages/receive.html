@@ -1,4 +1,59 @@
 ﻿<div class="page">
-  <div class="page-title">Receive</div>
-  <div class="page-sub">Receiving placeholder. Next step: receive form + log.</div>
+  <div class="page-head">
+    <div>
+      <div class="page-title">Receive</div>
+      <div class="page-sub">Receive items into a location (updates on-hand)</div>
+    </div>
+  </div>
+
+  <div class="card slim">
+    <div class="card-title">Receiving Entry</div>
+
+    <div class="form-grid">
+      <label class="field">
+        <div class="lbl">User Initials *</div>
+        <input id="rInit" class="input" placeholder="e.g. AM" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Vendor *</div>
+        <input id="rVendor" class="input" placeholder="e.g. Gemaire" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">PO (optional)</div>
+        <input id="rPO" class="input" placeholder="PO #" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Location *</div>
+        <select id="rLoc" class="input"></select>
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Item *</div>
+        <select id="rItem" class="input"></select>
+      </label>
+
+      <label class="field">
+        <div class="lbl">Qty *</div>
+        <input id="rQty" class="input" type="number" step="1" value="1" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Unit Cost (optional)</div>
+        <input id="rCost" class="input" type="number" step="0.01" value="0" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Notes</div>
+        <input id="rNotes" class="input" placeholder="notes..." />
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="rSubmit" class="btn btn-primary">Receive</button>
+      <div id="rMsg" class="msg"></div>
+    </div>
+  </div>
 </div>
