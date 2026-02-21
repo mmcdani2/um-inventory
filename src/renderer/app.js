@@ -28,6 +28,11 @@ async function loadView(routeId) {
     await mod.mountReceive();
   }
 
+  if (route.id === "reports") {
+    const mod = await import("./pages/reports.js");
+    await mod.mountReports();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);

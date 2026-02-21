@@ -65,6 +65,10 @@ app.whenReady().then(() => {
     return dbLayer.receiveItem(db, payload);
   });
 
+  ipcMain.handle("reports:onhand", () => {
+    return dbLayer.getOnHand(db);
+  });
+
   createWindow();
 
   app.on("activate", () => {

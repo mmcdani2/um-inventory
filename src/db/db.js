@@ -177,6 +177,28 @@ function receiveItem(db, payload) {
   return { transaction_id: txId };
 }
 
+function getOnHand(db) {
+  return db
+    .prepare(
+      `
+    SELECT
+      l.code AS location_code,
+      l.name AS location_name,
+      i.sku,
+      i.description,
+      i.category,
+      i.unit,
+      b.on_hand,
+      b.updated_at
+    FROM inventory_balances b
+    JOIN items i ON i.id = b.item_id
+    JOIN locations l ON l.id = b.location_id
+    ORDER BY l.code, i.category, i.sku
+  `,
+    )
+    .all();
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -186,5 +208,6 @@ module.exports = {
   createItem,
   createLocation,
   receiveItem,
+  getOnHand,
 };
 
