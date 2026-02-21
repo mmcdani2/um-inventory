@@ -33,6 +33,11 @@ async function loadView(routeId) {
     await mod.mountReports();
   }
 
+  if (route.id === "checkout") {
+    const mod = await import("./pages/checkout.js");
+    await mod.mountCheckout();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);

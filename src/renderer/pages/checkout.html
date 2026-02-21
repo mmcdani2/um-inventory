@@ -1,4 +1,49 @@
 ﻿<div class="page">
-  <div class="page-title">Checkout</div>
-  <div class="page-sub">Checkout placeholder. Next step: checkout form + log.</div>
+  <div class="page-head">
+    <div>
+      <div class="page-title">Checkout</div>
+      <div class="page-sub">Checkout items to a job/tech (decreases on-hand)</div>
+    </div>
+  </div>
+
+  <div class="card slim">
+    <div class="card-title">Checkout Entry</div>
+
+    <div class="form-grid">
+      <label class="field">
+        <div class="lbl">Job # *</div>
+        <input id="cJob" class="input" placeholder="e.g. 25-1042" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Tech *</div>
+        <input id="cTech" class="input" placeholder="e.g. Davin" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Location *</div>
+        <select id="cLoc" class="input"></select>
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Item *</div>
+        <select id="cItem" class="input"></select>
+      </label>
+
+      <label class="field">
+        <div class="lbl">Qty *</div>
+        <input id="cQty" class="input" type="number" step="1" value="1" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Notes</div>
+        <input id="cNotes" class="input" placeholder="notes..." />
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="cSubmit" class="btn btn-primary">Checkout</button>
+      <div id="cMsg" class="msg"></div>
+    </div>
+  </div>
 </div>

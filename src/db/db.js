@@ -199,6 +199,71 @@ function getOnHand(db) {
     .all();
 }
 
+function checkoutItem(db, payload) {
+  const job_number = String(payload.job_number || "").trim();
+  const tech = String(payload.tech || "").trim();
+  const notes = String(payload.notes || "").trim();
+
+  const item_id = Number(payload.item_id);
+  const location_id = Number(payload.location_id);
+  const qty = Number(payload.qty);
+
+  if (!job_number) throw new Error("Job # required.");
+  if (!tech) throw new Error("Tech required.");
+  if (!Number.isFinite(item_id) || item_id <= 0)
+    throw new Error("Item required.");
+  if (!Number.isFinite(location_id) || location_id <= 0)
+    throw new Error("Location required.");
+  if (!Number.isFinite(qty) || qty <= 0) throw new Error("Qty must be > 0.");
+
+  const tx = db.transaction(() => {
+    // Check available
+    const bal = db
+      .prepare(
+        `
+      SELECT on_hand FROM inventory_balances
+      WHERE item_id=? AND location_id=?
+    `,
+      )
+      .get(item_id, location_id);
+
+    const onHand = Number(bal?.on_hand ?? 0);
+    if (onHand < qty)
+      throw new Error(`Insufficient on-hand. Available: ${onHand}`);
+
+    const txRes = db
+      .prepare(
+        `
+      INSERT INTO transactions (type, job_number, tech, notes)
+      VALUES ('CHECKOUT', ?, ?, ?)
+    `,
+      )
+      .run(job_number, tech, notes);
+
+    const txId = txRes.lastInsertRowid;
+
+    db.prepare(
+      `
+      INSERT INTO transaction_lines (transaction_id, item_id, location_id, qty, unit_cost)
+      VALUES (?, ?, ?, ?, 0)
+    `,
+    ).run(txId, item_id, location_id, -Math.abs(qty));
+
+    db.prepare(
+      `
+      UPDATE inventory_balances
+      SET on_hand = on_hand - ?, updated_at = datetime('now')
+      WHERE item_id=? AND location_id=?
+    `,
+    ).run(qty, item_id, location_id);
+
+    return txId;
+  });
+
+  const txId = tx();
+  return { transaction_id: txId };
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -209,5 +274,6 @@ module.exports = {
   createLocation,
   receiveItem,
   getOnHand,
+  checkoutItem,
 };
 

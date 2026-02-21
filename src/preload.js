@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("api", {
   locationsCreate: (loc) => ipcRenderer.invoke("locations:create", loc),
   receiveSubmit: (payload) => ipcRenderer.invoke("receive:submit", payload),
   reportsOnHand: () => ipcRenderer.invoke("reports:onhand"),
+  checkoutSubmit: (payload) => ipcRenderer.invoke("checkout:submit", payload),
 });
 
 

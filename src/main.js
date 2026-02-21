@@ -69,6 +69,10 @@ app.whenReady().then(() => {
     return dbLayer.getOnHand(db);
   });
 
+  ipcMain.handle("checkout:submit", (_evt, payload) => {
+    return dbLayer.checkoutItem(db, payload);
+  });
+
   createWindow();
 
   app.on("activate", () => {
