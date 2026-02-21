@@ -213,3 +213,19 @@ body{
 }
 
 .input.bad{border-color: rgba(255, 120, 120, .75)}
+
+.tabs{display:flex; gap:8px; margin: 10px 0 12px}
+.tab{
+  background: transparent;
+  color: var(--text);
+  border:1px solid var(--border);
+  padding:10px 12px;
+  border-radius: 10px;
+  cursor:pointer;
+}
+.tab:hover{border-color:#2b3a52}
+.tab.active{
+  border-color: rgba(227,179,65,.45);
+  background: rgba(227,179,65,.10);
+}
+.tabpane.hidden{display:none}

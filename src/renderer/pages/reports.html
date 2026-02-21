@@ -2,29 +2,56 @@
   <div class="page-head">
     <div>
       <div class="page-title">Reports</div>
-      <div class="page-sub">On-hand (by location)</div>
+      <div class="page-sub">On-hand + Suggested Order</div>
     </div>
     <div class="page-actions">
       <button id="repRefresh" class="btn">Refresh</button>
     </div>
   </div>
 
-  <div class="table-wrap">
-    <table class="table" id="repTable">
-      <thead>
-        <tr>
-          <th>Location</th>
-          <th>Category</th>
-          <th>SKU</th>
-          <th>Description</th>
-          <th class="right">On Hand</th>
-          <th>Unit</th>
-          <th>Updated</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+  <div class="tabs">
+    <button class="tab active" data-tab="onhand">On-hand</button>
+    <button class="tab" data-tab="suggested">Suggested Order</button>
   </div>
 
-  <div class="hint" id="repHint"></div>
+  <div id="repOnhand" class="tabpane">
+    <div class="table-wrap">
+      <table class="table" id="repTable">
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>Category</th>
+            <th>SKU</th>
+            <th>Description</th>
+            <th class="right">On Hand</th>
+            <th>Unit</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="hint" id="repHint"></div>
+  </div>
+
+  <div id="repSuggested" class="tabpane hidden">
+    <div class="table-wrap">
+      <table class="table" id="soTable">
+        <thead>
+          <tr>
+            <th>Vendor</th>
+            <th>Category</th>
+            <th>SKU</th>
+            <th>Description</th>
+            <th class="right">On Hand</th>
+            <th class="right">Reorder Pt</th>
+            <th class="right">Reorder Qty</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="hint" id="soHint"></div>
+  </div>
 </div>

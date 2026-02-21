@@ -89,6 +89,10 @@ app.whenReady().then(() => {
     return dbLayer.countAndAdjust(db, payload);
   });
 
+  ipcMain.handle("reports:suggestedOrders", () => {
+    return dbLayer.getSuggestedOrders(db);
+  });
+    
   createWindow();
 
   app.on("activate", () => {

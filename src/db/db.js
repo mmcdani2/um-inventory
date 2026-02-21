@@ -376,6 +376,31 @@ function countAndAdjust(db, payload) {
   return tx();
 }
 
+function getSuggestedOrders(db) {
+  return db
+    .prepare(
+      `
+    SELECT
+      i.id,
+      i.sku,
+      i.description,
+      i.category,
+      i.vendor,
+      i.unit,
+      i.reorder_point,
+      i.reorder_qty,
+      COALESCE(SUM(b.on_hand), 0) AS on_hand_total
+    FROM items i
+    LEFT JOIN inventory_balances b ON b.item_id = i.id
+    WHERE i.is_active = 1
+    GROUP BY i.id
+    HAVING on_hand_total <= i.reorder_point
+    ORDER BY i.vendor, i.category, i.sku
+  `,
+    )
+    .all();
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -388,5 +413,6 @@ module.exports = {
   getOnHand,
   checkoutItem,
   countAndAdjust,
+  getSuggestedOrders,
 };
 
