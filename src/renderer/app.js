@@ -1,20 +1,58 @@
+import { routes, getRoute } from "./router.js";
+
 const $ = (id) => document.getElementById(id);
 
-async function refresh() {
+function setActiveNav(routeId) {
+  document.querySelectorAll(".nav a").forEach((a) => {
+    a.classList.toggle("active", a.dataset.route === routeId);
+  });
+}
+
+async function loadView(routeId) {
+  const route = getRoute(routeId);
+  const res = await fetch(route.file);
+  const html = await res.text();
+  $("view").innerHTML = html;
+  if (route.id === "items") {
+    const mod = await import("./pages/items.js");
+    await mod.mountItems();
+  }
+
+  const url = new URL(window.location.href);
+  url.hash = route.id;
+  history.replaceState(null, "", url);
+
+  setActiveNav(route.id);
+}
+
+function renderNav() {
+  const nav = $("nav");
+  nav.innerHTML = routes
+    .map((r) => `<a href="#${r.id}" data-route="${r.id}">${r.label}</a>`)
+    .join("");
+
+  nav.addEventListener("click", (e) => {
+    const a = e.target.closest("a");
+    if (!a) return;
+    e.preventDefault();
+    loadView(a.dataset.route);
+  });
+}
+
+async function refreshDbInfo() {
   const info = await window.api.dbGetInfo();
   $("dbPath").textContent = info.dbPath;
-  $("rowCount").textContent = String(info.rowCount);
-  $("lastRow").textContent = info.last ? JSON.stringify(info.last) : "—";
+  $("schemaVersion").textContent = info.schemaVersion
+    ? String(info.schemaVersion)
+    : "—";
 }
 
-async function addRow() {
-  const stamp = new Date().toLocaleString();
-  await window.api.dbAddSmoke(`Smoke row @ ${stamp}`);
-  await refresh();
-}
+window.addEventListener("DOMContentLoaded", async () => {
+  renderNav();
+  $("btnRefresh").addEventListener("click", refreshDbInfo);
 
-window.addEventListener("DOMContentLoaded", () => {
-  $("btnRefresh").addEventListener("click", refresh);
-  $("btnAdd").addEventListener("click", addRow);
-  refresh();
+  await refreshDbInfo();
+
+  const initial = (location.hash || "#home").replace("#", "");
+  await loadView(initial);
 });

@@ -12,51 +12,39 @@
         <div class="brand">
           <div class="dot"></div>
           <div>
-            <div class="title">UM Inventory</div>
-            <div class="sub">Offline • Local SQLite • No Cloud</div>
+            <div class="title">Urban Inventory</div>
+            <div class="sub">Receive • Release • Reconcile</div>
           </div>
         </div>
 
         <div class="actions">
           <button id="btnRefresh" class="btn">Refresh</button>
-          <button id="btnAdd" class="btn btn-primary">Write Test Row</button>
         </div>
       </header>
 
-      <main class="grid">
-        <section class="card">
-          <div class="card-title">DB Status</div>
-          <div class="kv">
-            <div class="k">DB File</div>
-            <div class="v mono" id="dbPath">—</div>
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="nav-title">Navigation</div>
+          <nav id="nav" class="nav"></nav>
 
-            <div class="k">Row Count</div>
-            <div class="v mono" id="rowCount">—</div>
-
-            <div class="k">Last Row</div>
-            <div class="v mono" id="lastRow">—</div>
+          <div class="side-card">
+            <div class="side-k">DB</div>
+            <div class="side-v mono" id="dbPath">—</div>
+            <div class="side-k">Schema</div>
+            <div class="side-v mono" id="schemaVersion">—</div>
           </div>
-          <div class="hint">
-            This is a smoke test. If you close the app and reopen it, row count should persist.
-          </div>
-        </section>
+        </aside>
 
-        <section class="card">
-          <div class="card-title">Next</div>
-          <ul class="list">
-            <li>Scaffold navigation + pages (Items / Receive / Checkout / Counts / Reports)</li>
-            <li>Replace smoke tables with real schema</li>
-            <li>Implement transaction ledger + on-hand rollups</li>
-            <li>Add CSV export</li>
-          </ul>
-        </section>
-      </main>
+        <main class="content">
+          <div id="view" class="view card"></div>
+        </main>
+      </div>
 
       <footer class="footer">
         <span class="muted">MVP build — local-first</span>
       </footer>
     </div>
 
-    <script src="./app.js"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

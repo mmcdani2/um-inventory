@@ -1,0 +1,91 @@
+﻿<div class="page">
+  <div class="page-head">
+    <div>
+      <div class="page-title">Items</div>
+      <div class="page-sub">Catalog</div>
+    </div>
+    <div class="page-actions">
+      <button id="itemsRefresh" class="btn">Refresh</button>
+    </div>
+  </div>
+
+  <div class="card slim">
+    <div class="card-title">Add Item</div>
+    <div class="form-grid">
+      <label class="field">
+        <div class="lbl">SKU / Part # *</div>
+        <input id="fSku" class="input" placeholder="e.g. CAP-35-7.5" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Description *</div>
+        <input id="fDesc" class="input" placeholder="e.g. 35/5 MFD Run Capacitor" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Category</div>
+        <input id="fCat" class="input" placeholder="e.g. Electrical" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Unit</div>
+        <input id="fUnit" class="input" value="EA" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Vendor</div>
+        <input id="fVendor" class="input" placeholder="e.g. Gemaire" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Location (bin)</div>
+        <input id="fLoc" class="input" placeholder="(next step)" disabled />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Barcode (optional)</div>
+        <input id="fBarcode" class="input" placeholder="scan/enter" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Reorder Point</div>
+        <input id="fROP" class="input" type="number" step="1" value="0" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Reorder Qty</div>
+        <input id="fROQ" class="input" type="number" step="1" value="0" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Cost</div>
+        <input id="fCost" class="input" type="number" step="0.01" value="0" />
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="itemsAdd" class="btn btn-primary">Add Item</button>
+      <div id="itemsMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table" id="itemsTable">
+      <thead>
+        <tr>
+          <th>SKU / Part #</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Unit</th>
+          <th>Vendor</th>
+          <th class="right">Reorder Pt</th>
+          <th class="right">Reorder Qty</th>
+          <th class="right">Cost</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="hint" id="itemsHint"></div>
+</div>
