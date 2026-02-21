@@ -35,14 +35,33 @@ function getMeta(db) {
   return { schemaVersion };
 }
 
-// READ-ONLY queries (Step 7)
+// READ-ONLY queries 
 function listItems(db) {
-  return db.prepare(`
-    SELECT id, sku, description, category, unit, vendor, barcode,
-           reorder_point, reorder_qty, default_cost, is_active, created_at, updated_at
-    FROM items
-    ORDER BY category, sku
-  `).all();
+  return db
+    .prepare(
+      `
+    SELECT
+      i.id,
+      i.sku,
+      i.description,
+      i.category,
+      i.unit,
+      i.vendor,
+      i.barcode,
+      i.reorder_point,
+      i.reorder_qty,
+      i.default_cost,
+      i.is_active,
+      i.created_at,
+      i.updated_at,
+      COALESCE(SUM(b.on_hand), 0) AS on_hand_total
+    FROM items i
+    LEFT JOIN inventory_balances b ON b.item_id = i.id
+    GROUP BY i.id
+    ORDER BY i.category, i.sku
+  `,
+    )
+    .all();
 }
 
 function listLocations(db) {
@@ -264,6 +283,99 @@ function checkoutItem(db, payload) {
   return { transaction_id: txId };
 }
 
+function countAndAdjust(db, payload) {
+  const user_initials = String(payload.user_initials || "")
+    .trim()
+    .toUpperCase();
+  const notes = String(payload.notes || "").trim();
+
+  const item_id = Number(payload.item_id);
+  const location_id = Number(payload.location_id);
+  const actual_qty = Number(payload.actual_qty);
+
+  if (!user_initials) throw new Error("User initials required.");
+  if (!Number.isFinite(item_id) || item_id <= 0)
+    throw new Error("Item required.");
+  if (!Number.isFinite(location_id) || location_id <= 0)
+    throw new Error("Location required.");
+  if (!Number.isFinite(actual_qty) || actual_qty < 0)
+    throw new Error("Actual qty must be >= 0.");
+
+  const tx = db.transaction(() => {
+    const bal = db
+      .prepare(
+        `
+      SELECT on_hand FROM inventory_balances
+      WHERE item_id=? AND location_id=?
+    `,
+      )
+      .get(item_id, location_id);
+
+    const theoretical_qty = Number(bal?.on_hand ?? 0);
+    const variance_qty = actual_qty - theoretical_qty;
+
+    // Create cycle count header
+    const ccRes = db
+      .prepare(
+        `
+      INSERT INTO cycle_counts (user_initials, location_id, notes)
+      VALUES (?, ?, ?)
+    `,
+      )
+      .run(user_initials, location_id, notes);
+
+    const ccId = ccRes.lastInsertRowid;
+
+    db.prepare(
+      `
+      INSERT INTO cycle_count_lines (cycle_count_id, item_id, theoretical_qty, actual_qty, variance_qty)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    ).run(ccId, item_id, theoretical_qty, actual_qty, variance_qty);
+
+    // Create ADJUST transaction (ledger)
+    const txRes = db
+      .prepare(
+        `
+      INSERT INTO transactions (type, user_initials, notes)
+      VALUES ('ADJUST', ?, ?)
+    `,
+      )
+      .run(user_initials, `Cycle Count #${ccId}. ${notes}`.trim());
+
+    const txId = txRes.lastInsertRowid;
+
+    // Adjustment line is variance (can be + or -)
+    db.prepare(
+      `
+      INSERT INTO transaction_lines (transaction_id, item_id, location_id, qty, unit_cost)
+      VALUES (?, ?, ?, ?, 0)
+    `,
+    ).run(txId, item_id, location_id, variance_qty);
+
+    // Set balance to actual (authoritative)
+    db.prepare(
+      `
+      INSERT INTO inventory_balances (item_id, location_id, on_hand)
+      VALUES (?, ?, ?)
+      ON CONFLICT(item_id, location_id)
+      DO UPDATE SET
+        on_hand = excluded.on_hand,
+        updated_at = datetime('now')
+    `,
+    ).run(item_id, location_id, actual_qty);
+
+    return {
+      cycle_count_id: ccId,
+      transaction_id: txId,
+      theoretical_qty,
+      variance_qty,
+    };
+  });
+
+  return tx();
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -275,5 +387,6 @@ module.exports = {
   receiveItem,
   getOnHand,
   checkoutItem,
+  countAndAdjust,
 };
 

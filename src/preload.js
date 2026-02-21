@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld("api", {
   receiveSubmit: (payload) => ipcRenderer.invoke("receive:submit", payload),
   reportsOnHand: () => ipcRenderer.invoke("reports:onhand"),
   checkoutSubmit: (payload) => ipcRenderer.invoke("checkout:submit", payload),
+  countsGetTheoretical: (payload) =>
+    ipcRenderer.invoke("counts:getTheoretical", payload),
+  countsSubmit: (payload) => ipcRenderer.invoke("counts:submit", payload),
 });
 
 

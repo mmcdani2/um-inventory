@@ -38,6 +38,11 @@ async function loadView(routeId) {
     await mod.mountCheckout();
   }
 
+  if (route.id === "counts") {
+    const mod = await import("./pages/counts.js");
+    await mod.mountCounts();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);

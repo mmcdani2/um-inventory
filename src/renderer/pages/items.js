@@ -74,6 +74,7 @@
   });
 
   await load();
+  window.addEventListener("data:changed", load);
 }
 
 function rowHtml(i) {
@@ -84,6 +85,7 @@ function rowHtml(i) {
       <td>${escapeHtml(i.category)}</td>
       <td>${escapeHtml(i.unit)}</td>
       <td>${escapeHtml(i.vendor)}</td>
+      <td class="right mono">${fmtNum(i.on_hand_total)}</td>
       <td class="right mono">${fmtNum(i.reorder_point)}</td>
       <td class="right mono">${fmtNum(i.reorder_qty)}</td>
       <td class="right mono">${fmtMoney(i.default_cost)}</td>

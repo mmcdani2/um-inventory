@@ -22,6 +22,7 @@
 
   btn.addEventListener("click", load);
   await load();
+  window.addEventListener("data:changed", load);
 }
 
 function fmtNum(n) {

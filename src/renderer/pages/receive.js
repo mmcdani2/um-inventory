@@ -46,6 +46,7 @@
 
       const res = await window.api.receiveSubmit(payload);
       setMsg(`Received. TX #${res.transaction_id}`);
+      window.dispatchEvent(new CustomEvent("data:changed"));
       rQty.value = "1";
       rCost.value = "0";
       rNotes.value = "";

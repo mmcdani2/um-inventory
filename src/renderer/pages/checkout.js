@@ -42,6 +42,7 @@
 
       const res = await window.api.checkoutSubmit(payload);
       setMsg(`Checked out. TX #${res.transaction_id}`);
+      window.dispatchEvent(new CustomEvent("data:changed"));
       cQty.value = "1";
       cNotes.value = "";
       cItem.focus();

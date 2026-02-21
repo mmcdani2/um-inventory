@@ -1,4 +1,47 @@
 ﻿<div class="page">
-  <div class="page-title">Counts</div>
-  <div class="page-sub">Cycle counts placeholder. Next step: enter actual + variance + adjust.</div>
+  <div class="page-head">
+    <div>
+      <div class="page-title">Counts</div>
+      <div class="page-sub">Table mode (enter actuals). Save comes next step.</div>
+    </div>
+  </div>
+
+  <div class="card slim">
+    <div class="form-grid">
+      <label class="field">
+        <div class="lbl">User Initials *</div>
+        <input id="kInit" class="input" placeholder="e.g. AM" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Location *</div>
+        <select id="kLoc" class="input"></select>
+      </label>
+    </div>
+
+    <div class="row">
+      <button id="kLoad" class="btn">Load Items</button>
+      <button id="kSave" class="btn btn-primary" disabled>Save Counts (next step)</button>
+      <div id="kMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table" id="kTable">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>SKU</th>
+          <th>Description</th>
+          <th class="right">Theoretical</th>
+          <th class="right">Actual</th>
+          <th class="right">Variance</th>
+          <th>Unit</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="hint" id="kHint"></div>
 </div>

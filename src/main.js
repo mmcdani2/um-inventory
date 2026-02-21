@@ -73,6 +73,22 @@ app.whenReady().then(() => {
     return dbLayer.checkoutItem(db, payload);
   });
 
+  ipcMain.handle("counts:getTheoretical", (_evt, { item_id, location_id }) => {
+    const row = db
+      .prepare(
+        `
+    SELECT on_hand FROM inventory_balances
+    WHERE item_id=? AND location_id=?
+  `,
+      )
+      .get(Number(item_id), Number(location_id));
+    return { theoretical_qty: Number(row?.on_hand ?? 0) };
+  });
+
+  ipcMain.handle("counts:submit", (_evt, payload) => {
+    return dbLayer.countAndAdjust(db, payload);
+  });
+
   createWindow();
 
   app.on("activate", () => {
