@@ -1,7 +1,7 @@
 {
   "name": "um-inventory",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "Offline, local-first inventory app for Urban Mechanical (MVP).",
   "main": "src/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -14,8 +14,8 @@
     "url": "git+https://github.com/mmcdani2/um-inventory.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Urban Mechanical",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/mmcdani2/um-inventory/issues"
@@ -35,5 +35,6 @@
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "electron-squirrel-startup": "^1.0.1"
-  }
+  },
+  "productName": "UM Inventory"
 }
