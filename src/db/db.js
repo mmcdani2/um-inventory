@@ -90,6 +90,34 @@ function createItem(db, item) {
   }
 }
 
+function createLocation(db, loc) {
+  const code = String(loc.code || "")
+    .trim()
+    .toUpperCase();
+  const name = String(loc.name || "").trim();
+  if (!code) throw new Error("Location code is required.");
+
+  try {
+    const res = db
+      .prepare(
+        `
+      INSERT INTO locations (code, name)
+      VALUES (?, ?)
+    `,
+      )
+      .run(code, name);
+
+    return db
+      .prepare("SELECT * FROM locations WHERE id=?")
+      .get(res.lastInsertRowid);
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) {
+      throw new Error("Location code already exists.");
+    }
+    throw e;
+  }
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -97,5 +125,6 @@ module.exports = {
   listItems,
   listLocations,
   createItem,
+  createLocation,
 };
 

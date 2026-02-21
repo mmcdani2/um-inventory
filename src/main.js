@@ -53,6 +53,14 @@ app.whenReady().then(() => {
     return dbLayer.createItem(db, item);
   });
 
+  ipcMain.handle("locations:list", () => {
+    return dbLayer.listLocations(db);
+  });
+
+  ipcMain.handle("locations:create", (_evt, loc) => {
+    return dbLayer.createLocation(db, loc);
+  });
+
   createWindow();
 
   app.on("activate", () => {

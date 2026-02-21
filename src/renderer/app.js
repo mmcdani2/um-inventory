@@ -18,6 +18,11 @@ async function loadView(routeId) {
     await mod.mountItems();
   }
 
+  if (route.id === "home") {
+    const mod = await import("./pages/home.js");
+    await mod.mountHome();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);
