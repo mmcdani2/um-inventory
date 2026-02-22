@@ -559,6 +559,20 @@ function updateLocation(db, loc) {
   }
 }
 
+function resetDb(db) {
+  const tx = db.transaction(() => {
+    // order matters due to FKs
+    db.prepare("DELETE FROM transaction_lines").run();
+    db.prepare("DELETE FROM transactions").run();
+    db.prepare("DELETE FROM inventory_balances").run();
+    // optional: keep catalog + locations, or wipe them too:
+    // db.prepare("DELETE FROM items").run();
+    // db.prepare("DELETE FROM locations").run();
+  });
+  tx();
+  return { ok: true };
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -576,4 +590,5 @@ module.exports = {
   updateItem,
   getHomeStats,
   updateLocation,
+  resetDb,
 };

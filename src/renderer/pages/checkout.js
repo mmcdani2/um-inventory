@@ -54,7 +54,10 @@
   }
 
   btn.addEventListener("click", submit);
-  cNotes.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  cNotes.addEventListener("keydown", (e) => {
+    // Ctrl+Enter submits; plain Enter makes a new line
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submit();
+  });
 
   await loadPickers();
 }

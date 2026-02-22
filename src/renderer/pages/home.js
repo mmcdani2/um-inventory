@@ -13,7 +13,24 @@
   const lCancel = document.getElementById("lCancel");
 
   const locTbody = document.querySelector("#locTable tbody");
+
+  // Optional (only if present in HTML)
   const locHint = document.getElementById("locHint");
+
+  // Guard ONLY required elements
+  const missing = [];
+  if (!skus) missing.push("kpiSkus");
+  if (!locs) missing.push("kpiLocs");
+  if (!reorder) missing.push("kpiReorder");
+  if (!tx7d) missing.push("kpiTx7d");
+  if (!homeHint) missing.push("homeHint");
+  if (!lMsg) missing.push("lMsg");
+  if (!lCode) missing.push("lCode");
+  if (!lName) missing.push("lName");
+  if (!lSave) missing.push("lSave");
+  if (!lCancel) missing.push("lCancel");
+  if (!locTbody) missing.push("#locTable tbody");
+  if (missing.length) throw new Error(`Home page missing: ${missing.join(", ")}`);
 
   let editingId = null;
   let cachedLocations = [];
@@ -22,18 +39,15 @@
     lMsg.textContent = t || "";
     lMsg.classList.toggle("err", !!err);
   }
+
   const esc = (s) =>
-    String(s ?? "").replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;",
-        })[c],
-    );
+    String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[c]);
 
   function setModeEdit(on) {
     lSave.textContent = on ? "Save" : "Add";
@@ -70,18 +84,20 @@
     locTbody.innerHTML = locList
       .map(
         (l) => `
-      <tr data-id="${l.id}">
-        <td class="mono">${esc(l.code)}</td>
-        <td>${esc(l.name)}</td>
-        <td class="mono">${esc(l.created_at)}</td>
-      </tr>
-    `,
+          <tr data-id="${l.id}">
+            <td class="mono">${esc(l.code)}</td>
+            <td>${esc(l.name)}</td>
+            <td class="mono">${esc(l.created_at)}</td>
+          </tr>
+        `,
       )
       .join("");
 
-    locHint.textContent = locList.length
-      ? `${locList.length} location(s)`
-      : "No locations yet.";
+    if (locHint) {
+      locHint.textContent = locList.length
+        ? `${locList.length} location(s)`
+        : "No locations yet.";
+    }
 
     // click row to edit
     locTbody.querySelectorAll("tr[data-id]").forEach((tr) => {
@@ -106,14 +122,9 @@
 
     try {
       if (!editingId) {
-        // CREATE
-        await window.api.locationsCreate({
-          code: lCode.value,
-          name: lName.value,
-        });
+        await window.api.locationsCreate({ code: lCode.value, name: lName.value });
         setLMsg("Added.");
       } else {
-        // UPDATE
         await window.api.locationsUpdate({
           id: editingId,
           code: lCode.value,
@@ -138,10 +149,21 @@
     if (e.key === "Enter") save();
   });
 
+  // Quick Actions: router uses #routeId (no slash)
   document.querySelectorAll("[data-go]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      location.hash = btn.dataset.go;
+      const go = btn.dataset.go;
+      if (!go) return;
+      location.hash = `#${go}`;
     });
+  });
+
+  // DB reset button exists only on Home
+  document.getElementById("btnDbReset")?.addEventListener("click", async () => {
+    if (!confirm("Wipe ALL data (items, locations, balances, transactions)? This cannot be undone.")) return;
+    await window.api.dbReset();
+    window.dispatchEvent(new CustomEvent("data:changed"));
+    alert("Database wiped.");
   });
 
   window.addEventListener("data:changed", load);

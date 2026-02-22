@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("api", {
   locationsUpdate: (loc) => ipcRenderer.invoke("locations:update", loc),
   onWinMaximize: (cb) => ipcRenderer.on("win:maximize", cb),
   onWinUnmaximize: (cb) => ipcRenderer.on("win:unmaximize", cb),
+  dbReset: () => ipcRenderer.invoke("db:reset"),
 });
 
 

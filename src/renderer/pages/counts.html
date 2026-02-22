@@ -1,12 +1,5 @@
-﻿<div class="page">
-  <div class="page-head">
-    <div>
-      <div class="page-title">Counts</div>
-      <div class="page-sub">Table mode (enter actuals). Save comes next step.</div>
-    </div>
-  </div>
-
-  <div class="card slim">
+﻿<div class="page counts-page">
+  <div class="card slim counts-card">
     <div class="form-grid">
       <label class="field">
         <div class="lbl">User Initials *</div>
@@ -21,7 +14,9 @@
 
     <div class="row">
       <button id="kLoad" class="btn">Load Items</button>
-      <button id="kSave" class="btn btn-primary" disabled>Save Counts (next step)</button>
+      <button id="kSave" class="btn btn-primary" disabled>
+        Save Counts (next step)
+      </button>
       <div id="kMsg" class="msg"></div>
     </div>
   </div>
@@ -30,6 +25,7 @@
     <table class="table" id="kTable">
       <thead>
         <tr>
+          <th>Area</th>
           <th>Category</th>
           <th>SKU</th>
           <th>Description</th>

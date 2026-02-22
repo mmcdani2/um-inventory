@@ -11,10 +11,27 @@ export async function mountItems() {
   const menuPanel = document.getElementById("menuPanel");
 
   const tbody = document.querySelector("#itemsTable tbody");
-  const hint = document.getElementById("itemsHint");
   const msg = document.getElementById("itemsMsg");
+  const hint = document.getElementById("itemsHint"); // optional (safe if missing)
 
   let items = [];
+
+  tbody.addEventListener("click", (e) => {
+    const editBtn = e.target.closest("[data-edit]");
+    const locBtn = e.target.closest("[data-locs]");
+
+    if (editBtn) {
+      const id = Number(editBtn.dataset.edit);
+      setMsg(`Edit not wired yet (id=${id}).`);
+      return;
+    }
+
+    if (locBtn) {
+      const sku = String(locBtn.dataset.locs || "");
+      setMsg(`Locations not wired yet (sku=${sku}).`);
+      return;
+    }
+  });
 
   function setMsg(text, isError = false) {
     msg.textContent = text || "";
@@ -32,12 +49,43 @@ export async function mountItems() {
   document.addEventListener("click", () => toggleMenu(false));
   menuPanel.addEventListener("click", (e) => e.stopPropagation());
 
+  // Items search (client-side filter)
+  function wireItemsSearch() {
+    const input = document.getElementById("itemsSearch");
+    const clear = document.getElementById("itemsSearchClear");
+    if (!input || !clear || !tbody) return;
+
+    const apply = () => {
+      const q = input.value.trim().toLowerCase();
+      const rows = tbody.querySelectorAll("tr");
+      rows.forEach((tr) => {
+        const hay = (tr.innerText || "").toLowerCase();
+        tr.style.display = !q || hay.includes(q) ? "" : "none";
+      });
+    };
+
+    input.addEventListener("input", apply);
+    clear.addEventListener("click", () => {
+      input.value = "";
+      apply();
+      input.focus();
+    });
+
+    apply();
+  }
+
   async function load() {
     items = await window.api.itemsList();
     tbody.innerHTML = items.map((i) => rowHtml(i)).join("");
-    hint.textContent = items.length
-      ? `${items.length} item(s)`
-      : "No items yet.";
+
+    if (hint) {
+      hint.textContent = items.length
+        ? `${items.length} item(s)`
+        : "No items yet.";
+    }
+
+    // Re-apply current filter after rebuild
+    document.getElementById("itemsSearch")?.dispatchEvent(new Event("input"));
   }
 
   function addEditableRow() {
@@ -86,7 +134,8 @@ export async function mountItems() {
         if (input.dataset.autoselect === "1") delete input.dataset.autoselect;
 
         if (input.dataset.autoclear === "1") {
-          const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+          const isPrintable =
+            e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
           if (isPrintable || e.key === "Backspace" || e.key === "Delete") {
             input.value = "";
             delete input.dataset.autoclear;
@@ -193,21 +242,27 @@ export async function mountItems() {
   btnRefresh.addEventListener("click", load);
   window.addEventListener("data:changed", load);
 
+  wireItemsSearch();
   await load();
 }
 
 function rowHtml(i) {
   return `
-    <tr data-id="${i.id}">
+    <tr data-id="${i.id}" data-sku="${esc(i.sku)}">
       <td>${esc(i.category)}</td>
       <td class="mono">${esc(i.sku)}</td>
       <td title="${esc(i.description)}">${esc(i.description)}</td>
       <td class="c">${esc(i.unit)}</td>
-<td class="c mono">${num(i.on_hand_total)}</td>
-<td class="c mono">${num(i.reorder_point)}</td>
-<td class="c mono">${num(i.reorder_qty)}</td>
-<td class="c mono">${money(i.default_cost)}</td>
-<td class="c"></td>
+      <td class="c mono">${num(i.on_hand_total)}</td>
+      <td class="c mono">${num(i.reorder_point)}</td>
+      <td class="c mono">${num(i.reorder_qty)}</td>
+      <td class="c mono">${money(i.default_cost)}</td>
+      <td class="c">
+        <div class="row-actions">
+          <button class="btn" data-edit="${i.id}">Edit</button>
+          <button class="btn" data-locs="${esc(i.sku)}">Locations</button>
+        </div>
+      </td>
     </tr>
   `;
 }
@@ -308,7 +363,8 @@ function parseItemsCsv(csvText) {
     if (!description) rowErrors.push(`Row ${rowNum}: Description is required.`);
 
     const skuKey = sku.toLowerCase();
-    if (sku && seenSku.has(skuKey)) rowErrors.push(`Row ${rowNum}: duplicate SKU.`);
+    if (sku && seenSku.has(skuKey))
+      rowErrors.push(`Row ${rowNum}: duplicate SKU.`);
     if (sku) seenSku.add(skuKey);
 
     const onHandNum = parseOptionalNumber(onHand, rowNum, "On Hand", rowErrors);
@@ -367,7 +423,8 @@ function parseItemsCsv(csvText) {
 
   if (errors.length) {
     const preview = errors.slice(0, 10).join("\n");
-    const more = errors.length > 10 ? `\n…plus ${errors.length - 10} more.` : "";
+    const more =
+      errors.length > 10 ? `\n…plus ${errors.length - 10} more.` : "";
     throw new Error(`CSV validation failed:\n${preview}${more}`);
   }
 
@@ -452,7 +509,10 @@ function parseCsv(text) {
   if (field.length || row.length) pushRow();
 
   // drop trailing empty rows
-  while (rows.length && rows[rows.length - 1].every((c) => String(c ?? "").trim() === "")) {
+  while (
+    rows.length &&
+    rows[rows.length - 1].every((c) => String(c ?? "").trim() === "")
+  ) {
     rows.pop();
   }
   return rows;

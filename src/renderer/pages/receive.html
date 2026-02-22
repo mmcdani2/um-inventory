@@ -1,23 +1,36 @@
-﻿<div class="page">
+﻿<div class="page receive-page">
   <div class="page-head">
-    <div>
-      <div class="page-title">Receive</div>
-      <div class="page-sub">Receive items into a location (updates on-hand)</div>
-    </div>
+    
   </div>
 
-  <div class="card slim">
+  <div class="card slim receive-card">
     <div class="card-title">Receiving Entry</div>
 
     <div class="form-grid">
       <label class="field">
         <div class="lbl">User Initials *</div>
-        <input id="rInit" class="input" placeholder="e.g. AM" />
+        <input id="rInit" class="input" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Item *</div>
+
+        <div class="combo">
+          <input
+            id="rItemSearch"
+            class="input"
+            placeholder="Type SKU or description…"
+            autocomplete="off"
+          />
+          <div id="rItemResults" class="combo-panel hidden"></div>
+        </div>
+
+        <input id="rItem" type="hidden" value="" />
       </label>
 
       <label class="field">
         <div class="lbl">Vendor *</div>
-        <input id="rVendor" class="input" placeholder="e.g. Gemaire" />
+        <input id="rVendor" class="input" />
       </label>
 
       <label class="field">
@@ -28,11 +41,6 @@
       <label class="field">
         <div class="lbl">Location *</div>
         <select id="rLoc" class="input"></select>
-      </label>
-
-      <label class="field span-2">
-        <div class="lbl">Item *</div>
-        <select id="rItem" class="input"></select>
       </label>
 
       <label class="field">

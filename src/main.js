@@ -129,6 +129,8 @@ app.whenReady().then(() => {
     return dbLayer.updateLocation(db, loc);
   });
 
+  ipcMain.handle("db:reset", () => dbLayer.resetDb(db));
+
   createWindow();
 
   app.on("activate", () => {
