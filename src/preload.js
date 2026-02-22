@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("api", {
   itemsUpdate: (item) => ipcRenderer.invoke("items:update", item),
   homeStats: () => ipcRenderer.invoke("home:stats"),
   locationsUpdate: (loc) => ipcRenderer.invoke("locations:update", loc),
+  onWinMaximize: (cb) => ipcRenderer.on("win:maximize", cb),
+  onWinUnmaximize: (cb) => ipcRenderer.on("win:unmaximize", cb),
 });
 
 

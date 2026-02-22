@@ -80,6 +80,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const initial = (location.hash || "#home").replace("#", "");
   await loadView(initial);
+  const appEl = document.querySelector(".app");
+
+  window.api.onWinUnmaximize(() => appEl?.classList.add("sidebar-drawer"));
+  window.api.onWinMaximize(() => appEl?.classList.remove("sidebar-drawer"));
   window.addEventListener("hashchange", async () => {
     const routeId = (location.hash || "#home").replace("#", "");
     await loadView(routeId);

@@ -113,21 +113,10 @@ export async function mountItems() {
       const data = readRow(tr);
 
       try {
-        const created = await window.api.itemsCreate(data);
-        window.dispatchEvent(new CustomEvent("data:changed"));
-
-        if (created?.id) {
-          // New-item workflow: always send the user to Receive so on-hand is captured intentionally per location.
-          sessionStorage.setItem(
-            "receive:preselectItemId",
-            String(created.id),
-          );
-          sessionStorage.setItem("receive:resetLocation", "1");
-          location.hash = "#receive";
-          return;
-        }
-
+        await window.api.itemsCreate(data);
         setMsg("Added.");
+
+        window.dispatchEvent(new CustomEvent("data:changed"));
         await load();
       } catch (e) {
         setMsg(e.message || "Failed to add item.", true);

@@ -35,6 +35,10 @@ function createWindow() {
     },
   });
 
+  // Window state -> renderer
+  win.on("maximize", () => win.webContents.send("win:maximize"));
+  win.on("unmaximize", () => win.webContents.send("win:unmaximize"));
+
   win.maximize();
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));

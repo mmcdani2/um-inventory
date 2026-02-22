@@ -98,21 +98,19 @@
   box-shadow: var(--shadow);
 }
 
-/* Mobile-ish */
-@media (max-width: 1080px){
-  /* Always keep 2 columns; just auto-collapse width */
-  .layout{ grid-template-columns: 64px 1fr; }
-
-  .sidebar{ padding: 10px 8px; }
-  .nav-title,
-  .sidebar-footer{ display:none; }
-  .nav a{ text-align:center; padding: 12px 8px; }
-  .nav a::after{ content:""; }
+/* Drawer-collapse when window is restored (unmaximized) */
+.app.sidebar-drawer .layout{
+  grid-template-columns: 1fr; /* main takes full width */
 }
 
-.app.sidebar-collapsed .layout{ grid-template-columns: 64px 1fr; }
-.app.sidebar-collapsed .sidebar{ padding: 10px 8px; }
-.app.sidebar-collapsed .nav-title,
-.app.sidebar-collapsed .sidebar-footer{ display:none; }
-.app.sidebar-collapsed .nav a{ text-align:center; padding: 12px 8px; }
-.app.sidebar-collapsed .nav a::after{ content:""; }
+.app.sidebar-drawer .sidebar{
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  z-index: 1000;
+  transform: translateX(-102%);
+  transition: transform .18s ease;
+  pointer-events: none; /* hidden means not clickable */
+}
