@@ -137,6 +137,30 @@ function createLocation(db, loc) {
   }
 }
 
+function importItemsCsv(db, payload) {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  if (items.length === 0) return { imported: 0 };
+
+  const tx = db.transaction(() => {
+    let imported = 0;
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx] || {};
+      const row = Number(it.__row ?? idx + 2);
+      try {
+        createItem(db, it);
+        imported++;
+      } catch (e) {
+        const sku = String(it.sku || "").trim();
+        const skuPart = sku ? ` (${sku})` : "";
+        throw new Error(`Row ${row}${skuPart}: ${e.message || "Invalid row."}`);
+      }
+    }
+    return imported;
+  });
+
+  return { imported: tx() };
+}
+
 function receiveItem(db, payload) {
   const user_initials = String(payload.user_initials || "")
     .trim()
@@ -542,6 +566,7 @@ module.exports = {
   listItems,
   listLocations,
   createItem,
+  importItemsCsv,
   createLocation,
   receiveItem,
   getOnHand,

@@ -10,6 +10,7 @@ function setActiveNav(routeId) {
 
 async function loadView(routeId) {
   const route = getRoute(routeId);
+  setActiveNav(route.id);
   const res = await fetch(route.file);
   const html = await res.text();
   $("view").innerHTML = html;
@@ -46,8 +47,6 @@ async function loadView(routeId) {
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);
-
-  setActiveNav(route.id);
 }
 
 function renderNav() {
@@ -56,11 +55,13 @@ function renderNav() {
     .map((r) => `<a href="#${r.id}" data-route="${r.id}">${r.label}</a>`)
     .join("");
 
-  nav.addEventListener("click", (e) => {
+  nav.addEventListener("click", async (e) => {
     const a = e.target.closest("a");
     if (!a) return;
     e.preventDefault();
-    loadView(a.dataset.route);
+    const routeId = a.dataset.route || "home";
+    setActiveNav(routeId); // optimistic (avoids any race where Home doesn't highlight)
+    await loadView(routeId);
   });
 }
 
@@ -73,6 +74,7 @@ async function refreshDbInfo() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  console.log("[CANARY] renderer app.js DOMContentLoaded");
   renderNav();
   $("btnRefresh").addEventListener("click", refreshDbInfo);
 
@@ -81,9 +83,57 @@ window.addEventListener("DOMContentLoaded", async () => {
   const initial = (location.hash || "#home").replace("#", "");
   await loadView(initial);
   const appEl = document.querySelector(".app");
+  const btnSidebarToggle = $("btnSidebarToggle");
+  const scrim = $("drawerScrim");
 
-  window.api.onWinUnmaximize(() => appEl?.classList.add("sidebar-drawer"));
-  window.api.onWinMaximize(() => appEl?.classList.remove("sidebar-drawer"));
+  let isMaximized = true;
+  const syncDrawerMode = () => {
+    const shouldDrawer = window.innerWidth <= 980 || !isMaximized;
+    appEl?.classList.toggle("sidebar-drawer", shouldDrawer);
+    if (!shouldDrawer) {
+      appEl?.classList.remove("sidebar-open");
+      scrim?.classList.add("hidden");
+    }
+    btnSidebarToggle?.setAttribute(
+      "aria-expanded",
+      appEl?.classList.contains("sidebar-open") ? "true" : "false",
+    );
+  };
+
+  const openSidebar = () => {
+    if (!appEl?.classList.contains("sidebar-drawer")) return;
+    appEl.classList.add("sidebar-open");
+    scrim?.classList.remove("hidden");
+    btnSidebarToggle?.setAttribute("aria-expanded", "true");
+  };
+
+  const closeSidebar = () => {
+    appEl?.classList.remove("sidebar-open");
+    scrim?.classList.add("hidden");
+    btnSidebarToggle?.setAttribute("aria-expanded", "false");
+  };
+
+  btnSidebarToggle?.addEventListener("click", () => {
+    if (!appEl?.classList.contains("sidebar-drawer")) return;
+    if (appEl.classList.contains("sidebar-open")) closeSidebar();
+    else openSidebar();
+  });
+  scrim?.addEventListener("click", closeSidebar);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSidebar();
+  });
+
+  window.api.onWinUnmaximize(() => {
+    isMaximized = false;
+    syncDrawerMode();
+  });
+  window.api.onWinMaximize(() => {
+    isMaximized = true;
+    syncDrawerMode();
+  });
+  window.addEventListener("resize", syncDrawerMode);
+  syncDrawerMode();
+
   window.addEventListener("hashchange", async () => {
     const routeId = (location.hash || "#home").replace("#", "");
     await loadView(routeId);

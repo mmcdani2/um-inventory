@@ -125,32 +125,29 @@ export async function mountItems() {
   }
 
   function downloadTemplate() {
-    // Template includes low-priority fields too, because CSV import should be “full fidelity”.
     const headers = [
-      { key: "sku", label: "sku" },
-      { key: "description", label: "description" },
-      { key: "category", label: "category" },
-      { key: "unit", label: "unit" },
-      { key: "vendor", label: "vendor" },
-      { key: "barcode", label: "barcode" },
-      { key: "reorder_point", label: "reorder_point" },
-      { key: "reorder_qty", label: "reorder_qty" },
-      { key: "default_cost", label: "default_cost" },
-      { key: "is_active", label: "is_active" },
+      { key: "category", label: "Category" },
+      { key: "sku", label: "SKU / Part #" },
+      { key: "description", label: "Description" },
+      { key: "unit", label: "Unit" },
+      { key: "on_hand", label: "On Hand" },
+      { key: "reorder_point", label: "Reorder Pt" },
+      { key: "reorder_qty", label: "Reorder Qty" },
+      { key: "cost", label: "Cost" },
+      { key: "actions", label: "Actions" },
     ];
 
     const example = [
       {
+        category: "Electrical",
         sku: "CAP-35-7.5",
         description: "35/5 MFD Run Capacitor",
-        category: "Electrical",
         unit: "EA",
-        vendor: "Gemaire",
-        barcode: "",
+        on_hand: "0",
         reorder_point: "2",
         reorder_qty: "5",
-        default_cost: "18.50",
-        is_active: "1",
+        cost: "18.50",
+        actions: "",
       },
     ];
 
@@ -162,11 +159,34 @@ export async function mountItems() {
   btnTemplateCsv.addEventListener("click", downloadTemplate);
 
   btnImportCsv.addEventListener("click", () => {
-    setMsg(
-      "CSV import parsing is next step. Template download works now.",
-      true,
-    );
+    setMsg("");
+    toggleMenu(false);
     fileInput.click();
+  });
+
+  fileInput.addEventListener("change", async () => {
+    const f = fileInput.files?.[0];
+    fileInput.value = "";
+    if (!f) return;
+
+    setMsg("");
+    btnImportCsv.disabled = true;
+    btnTemplateCsv.disabled = true;
+
+    try {
+      const text = await f.text();
+      const { itemsToCreate } = parseItemsCsv(text);
+
+      const res = await window.api.itemsImportCsv({ items: itemsToCreate });
+      setMsg(`Imported ${Number(res?.imported ?? 0)} item(s).`);
+      window.dispatchEvent(new CustomEvent("data:changed"));
+      await load();
+    } catch (e) {
+      setMsg(e.message || "Failed to import CSV.", true);
+    } finally {
+      btnImportCsv.disabled = false;
+      btnTemplateCsv.disabled = false;
+    }
   });
 
   btnAddRow.addEventListener("click", addEditableRow);
@@ -226,6 +246,216 @@ function readRow(tr) {
     reorder_qty: v("reorder_qty"),
     default_cost: v("default_cost") || "0",
   };
+}
+
+function parseItemsCsv(csvText) {
+  const expectedHeaders = [
+    "Category",
+    "SKU / Part #",
+    "Description",
+    "Unit",
+    "On Hand",
+    "Reorder Pt",
+    "Reorder Qty",
+    "Cost",
+    "Actions",
+  ];
+
+  const rows = parseCsv(csvText).filter((r) =>
+    r.some((c) => String(c ?? "").trim() !== ""),
+  );
+  if (rows.length === 0) throw new Error("CSV is empty.");
+
+  const headerRow = rows[0].map((h) => normalizeHeader(h));
+  const expectedNorm = expectedHeaders.map((h) => normalizeHeader(h));
+
+  if (
+    headerRow.length !== expectedNorm.length ||
+    headerRow.some((h, i) => h !== expectedNorm[i])
+  ) {
+    throw new Error(
+      `CSV headers must match Items table exactly:\n${expectedHeaders.join(", ")}`,
+    );
+  }
+
+  const errors = [];
+  const itemsToCreate = [];
+  const seenSku = new Set();
+
+  for (let i = 1; i < rows.length; i++) {
+    const rowNum = i + 1; // 1-based in file
+    const r = [...rows[i]];
+    while (r.length < expectedHeaders.length) r.push("");
+    if (r.length > expectedHeaders.length) {
+      errors.push(`Row ${rowNum}: too many columns.`);
+      continue;
+    }
+
+    const rowErrors = [];
+    const [
+      category,
+      sku,
+      description,
+      unit,
+      onHand,
+      reorderPoint,
+      reorderQty,
+      cost,
+      actions,
+    ] = r.map((x) => String(x ?? "").trim());
+
+    if (!sku) rowErrors.push(`Row ${rowNum}: SKU / Part # is required.`);
+    if (!description) rowErrors.push(`Row ${rowNum}: Description is required.`);
+
+    const skuKey = sku.toLowerCase();
+    if (sku && seenSku.has(skuKey)) rowErrors.push(`Row ${rowNum}: duplicate SKU.`);
+    if (sku) seenSku.add(skuKey);
+
+    const onHandNum = parseOptionalNumber(onHand, rowNum, "On Hand", rowErrors);
+    if (onHandNum !== null && onHandNum !== 0) {
+      rowErrors.push(
+        `Row ${rowNum}: On Hand must be blank or 0 (receive into a location instead).`,
+      );
+    }
+    if (onHandNum !== null && !Number.isInteger(onHandNum)) {
+      rowErrors.push(`Row ${rowNum}: On Hand must be a whole number.`);
+    }
+
+    const reorderPointNum = parseOptionalNumber(
+      reorderPoint,
+      rowNum,
+      "Reorder Pt",
+      rowErrors,
+    );
+    const reorderQtyNum = parseOptionalNumber(
+      reorderQty,
+      rowNum,
+      "Reorder Qty",
+      rowErrors,
+    );
+    const costNum = parseOptionalNumber(cost, rowNum, "Cost", rowErrors);
+
+    if (reorderPointNum !== null && reorderPointNum < 0)
+      rowErrors.push(`Row ${rowNum}: Reorder Pt must be >= 0.`);
+    if (reorderPointNum !== null && !Number.isInteger(reorderPointNum))
+      rowErrors.push(`Row ${rowNum}: Reorder Pt must be a whole number.`);
+    if (reorderQtyNum !== null && reorderQtyNum < 0)
+      rowErrors.push(`Row ${rowNum}: Reorder Qty must be >= 0.`);
+    if (reorderQtyNum !== null && !Number.isInteger(reorderQtyNum))
+      rowErrors.push(`Row ${rowNum}: Reorder Qty must be a whole number.`);
+    if (costNum !== null && costNum < 0)
+      rowErrors.push(`Row ${rowNum}: Cost must be >= 0.`);
+
+    if (actions) rowErrors.push(`Row ${rowNum}: Actions must be blank.`);
+
+    if (rowErrors.length) {
+      errors.push(...rowErrors);
+      continue;
+    }
+
+    itemsToCreate.push({
+      __row: rowNum,
+      sku,
+      description,
+      category,
+      unit: unit || "EA",
+      reorder_point: String(reorderPointNum ?? 0),
+      reorder_qty: String(reorderQtyNum ?? 0),
+      default_cost: String(costNum ?? 0),
+    });
+  }
+
+  if (errors.length) {
+    const preview = errors.slice(0, 10).join("\n");
+    const more = errors.length > 10 ? `\n…plus ${errors.length - 10} more.` : "";
+    throw new Error(`CSV validation failed:\n${preview}${more}`);
+  }
+
+  return { itemsToCreate };
+}
+
+function normalizeHeader(s) {
+  return String(s ?? "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\/\s*/g, " / ");
+}
+
+function parseOptionalNumber(raw, rowNum, label, errors) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const cleaned = s.replace(/[$,]/g, "");
+  const x = Number(cleaned);
+  if (!Number.isFinite(x)) {
+    errors.push(`Row ${rowNum}: ${label} must be a number.`);
+    return null;
+  }
+  return x;
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  const pushField = () => {
+    row.push(field);
+    field = "";
+  };
+
+  const pushRow = () => {
+    pushField();
+    rows.push(row);
+    row = [];
+  };
+
+  const s = String(text ?? "");
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        const next = s[i + 1];
+        if (next === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      pushField();
+      continue;
+    }
+    if (ch === "\n") {
+      pushRow();
+      continue;
+    }
+    if (ch === "\r") continue;
+    field += ch;
+  }
+
+  // finalize
+  if (inQuotes) throw new Error("CSV parse error: unmatched quote.");
+  if (field.length || row.length) pushRow();
+
+  // drop trailing empty rows
+  while (rows.length && rows[rows.length - 1].every((c) => String(c ?? "").trim() === "")) {
+    rows.pop();
+  }
+  return rows;
 }
 
 function num(n) {

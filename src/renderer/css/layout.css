@@ -98,10 +98,18 @@
   box-shadow: var(--shadow);
 }
 
-/* Drawer-collapse when window is restored (unmaximized) */
-.app.sidebar-drawer .layout{
-  grid-template-columns: 1fr; /* main takes full width */
+/* Drawer mode (used on small widths or restored window) */
+.drawer-scrim{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 900;
 }
+
+.app.sidebar-drawer #btnSidebarToggle{ display:inline-block; }
+.app:not(.sidebar-drawer) #btnSidebarToggle{ display:none; }
+
+.app.sidebar-drawer .layout{ grid-template-columns: 1fr; }
 
 .app.sidebar-drawer .sidebar{
   position: fixed;
@@ -109,8 +117,19 @@
   top: 0;
   bottom: 0;
   width: 260px;
+  max-width: 86vw;
   z-index: 1000;
+  border-right:1px solid var(--border);
   transform: translateX(-102%);
   transition: transform .18s ease;
-  pointer-events: none; /* hidden means not clickable */
+  pointer-events: none;
+}
+
+.app.sidebar-drawer.sidebar-open .sidebar{
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.app.sidebar-drawer.sidebar-open .drawer-scrim{
+  display:block;
 }

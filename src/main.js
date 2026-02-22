@@ -42,6 +42,18 @@ function createWindow() {
   win.maximize();
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.send(win.isMaximized() ? "win:maximize" : "win:unmaximize");
+  });
+
+  // Minimal DevTools toggle (Ctrl+Shift+I)
+  win.webContents.on("before-input-event", (event, input) => {
+    const key = String(input.key || "").toUpperCase();
+    if (input.control && input.shift && key === "I") {
+      win.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
 }
 
 app.whenReady().then(() => {
@@ -59,6 +71,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("items:create", (_evt, item) => {
     return dbLayer.createItem(db, item);
+  });
+
+  ipcMain.handle("items:importCsv", (_evt, payload) => {
+    return dbLayer.importItemsCsv(db, payload);
   });
 
   ipcMain.handle("locations:list", () => {

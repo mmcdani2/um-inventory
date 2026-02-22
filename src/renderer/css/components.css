@@ -27,8 +27,9 @@
 }
 .nav a:hover{border-color:#2b3a52; background: rgba(17,27,40,.55)}
 .nav a.active{
-  border-color: rgba(227,179,65,.45);
-  background: rgba(227,179,65,.10);
+  background: rgba(227,179,65,.18);
+  border: 1px solid rgba(227,179,65,.35);
+  color: var(--text);
 }
 
 .page-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px}
