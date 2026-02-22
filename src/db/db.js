@@ -401,6 +401,140 @@ function getSuggestedOrders(db) {
     .all();
 }
 
+function updateItem(db, item) {
+  const id = Number(item.id);
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid item id.");
+
+  const sku = String(item.sku || "").trim();
+  const description = String(item.description || "").trim();
+  if (!sku) throw new Error("SKU/Part # is required.");
+  if (!description) throw new Error("Description is required.");
+
+  try {
+    db.prepare(
+      `
+      UPDATE items
+      SET
+        sku=?,
+        description=?,
+        category=?,
+        unit=?,
+        vendor=?,
+        barcode=?,
+        reorder_point=?,
+        reorder_qty=?,
+        default_cost=?,
+        is_active=?
+      WHERE id=?
+    `,
+    ).run(
+      sku,
+      description,
+      String(item.category || "").trim(),
+      String(item.unit || "EA").trim(),
+      String(item.vendor || "").trim(),
+      String(item.barcode || "").trim() || null,
+      Number(item.reorder_point || 0),
+      Number(item.reorder_qty || 0),
+      Number(item.default_cost || 0),
+      item.is_active ? 1 : 0,
+      id,
+    );
+
+    return db.prepare("SELECT * FROM items WHERE id=?").get(id);
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) {
+      throw new Error("SKU/Part # already exists.");
+    }
+    throw e;
+  }
+}
+
+function getHomeStats(db) {
+  const totalSkus = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS c
+    FROM items
+    WHERE is_active = 1
+  `,
+    )
+    .get().c;
+
+  const totalLocations = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS c
+    FROM locations
+  `,
+    )
+    .get().c;
+
+  const belowReorder = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS c FROM (
+      SELECT
+        i.id,
+        COALESCE(SUM(b.on_hand), 0) AS on_hand_total,
+        i.reorder_point
+      FROM items i
+      LEFT JOIN inventory_balances b ON b.item_id = i.id
+      WHERE i.is_active = 1
+      GROUP BY i.id
+      HAVING on_hand_total <= i.reorder_point
+    )
+  `,
+    )
+    .get().c;
+
+  const tx7d = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS c
+    FROM transactions
+    WHERE occurred_at >= datetime('now','-7 days')
+  `,
+    )
+    .get().c;
+
+  return {
+    total_skus: Number(totalSkus || 0),
+    total_locations: Number(totalLocations || 0),
+    below_reorder: Number(belowReorder || 0),
+    tx_7d: Number(tx7d || 0),
+  };
+}
+
+function updateLocation(db, loc) {
+  const id = Number(loc.id);
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid location id.");
+
+  const code = String(loc.code || "")
+    .trim()
+    .toUpperCase();
+  const name = String(loc.name || "").trim();
+
+  if (!code) throw new Error("Location code is required.");
+
+  try {
+    db.prepare(
+      `
+      UPDATE locations
+      SET code = ?, name = ?
+      WHERE id = ?
+    `,
+    ).run(code, name, id);
+
+    return db.prepare(`SELECT * FROM locations WHERE id=?`).get(id);
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) {
+      throw new Error("Location code already exists.");
+    }
+    throw e;
+  }
+}
+
 module.exports = {
   openDb,
   ensureSchema,
@@ -414,5 +548,7 @@ module.exports = {
   checkoutItem,
   countAndAdjust,
   getSuggestedOrders,
+  updateItem,
+  getHomeStats,
+  updateLocation,
 };
-

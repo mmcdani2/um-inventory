@@ -80,4 +80,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const initial = (location.hash || "#home").replace("#", "");
   await loadView(initial);
+  window.addEventListener("hashchange", async () => {
+    const routeId = (location.hash || "#home").replace("#", "");
+    await loadView(routeId);
+  });
 });

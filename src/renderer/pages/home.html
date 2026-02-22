@@ -2,43 +2,78 @@
   <div class="page-head">
     <div>
       <div class="page-title">Home</div>
-      <div class="page-sub">Setup: create bins/locations (shop, trucks, warehouse)</div>
+      <div class="page-sub">Snapshot + setup + quick actions</div>
     </div>
   </div>
 
-  <div class="card slim">
-    <div class="card-title">Add Location</div>
-
-    <div class="form-grid">
-      <label class="field">
-        <div class="lbl">Code *</div>
-        <input id="lCode" class="input" placeholder="e.g. SHOP-A1 or TRUCK-01" />
-      </label>
-
-      <label class="field span-2">
-        <div class="lbl">Name</div>
-        <input id="lName" class="input" placeholder="e.g. Main shop bin A1" />
-      </label>
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-k">Total SKUs</div>
+      <div class="kpi-v mono" id="kpiSkus">—</div>
     </div>
 
-    <div class="row">
-      <button id="lAdd" class="btn btn-primary">Add Location</button>
+    <div class="kpi">
+      <div class="kpi-k">Locations</div>
+      <div class="kpi-v mono" id="kpiLocs">—</div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-k">Below Reorder</div>
+      <div class="kpi-v mono" id="kpiReorder">—</div>
+    </div>
+
+    <div class="kpi">
+      <div class="kpi-k">Transactions (7d)</div>
+      <div class="kpi-v mono" id="kpiTx7d">—</div>
+    </div>
+  </div>
+
+  <div class="split">
+    <!-- Add Location -->
+    <div class="card-block">
+      <div class="card-title">Add Location</div>
+
+      <div class="inline-form">
+        <input
+          id="lCode"
+          class="input mono"
+          placeholder="Code (SHOP-A1 / TRUCK-01)"
+        />
+        <input id="lName" class="input" placeholder="Name (Main shop bin A1)" />
+
+        <button id="lSave" class="btn btn-primary">Add</button>
+        <button id="lCancel" class="btn" disabled>Cancel</button>
+      </div>
+
       <div id="lMsg" class="msg"></div>
+      <div class="hint" id="homeHint"></div>
+
+      <div class="table-wrap home-table">
+        <table class="table" id="locTable">
+          <thead>
+            <tr>
+              <th style="width: 160px">Code</th>
+              <th>Name</th>
+              <th style="width: 220px">Created</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card-block quick-card">
+      <div class="card-title">Quick Actions</div>
+      <div class="quick-grid big">
+        <button class="btn qa" data-go="receive">Receive</button>
+        <button class="btn qa" data-go="checkout">Checkout</button>
+        <button class="btn qa" data-go="counts">Counts</button>
+        <button class="btn qa" data-go="items">Items</button>
+        <button class="btn qa" data-go="reports">Reports</button>
+      </div>
     </div>
   </div>
-
-  <div class="table-wrap">
-    <table class="table" id="locTable">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Name</th>
-          <th>Created</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="hint" id="locHint"></div>
 </div>

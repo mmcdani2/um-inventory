@@ -1,0 +1,100 @@
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+  background: rgba(15, 22, 32, 0.55);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: auto; /* natural sizing so headers can breathe */
+}
+
+.table th,
+.table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+/* Headers: no truncation */
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--muted);
+  font-size: clamp(10px, 1.1vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(17, 27, 40, 0.92);
+
+  white-space: normal; /* wrap */
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* Body: mostly tight, but description wraps */
+.table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#itemsTable td:nth-child(3) {
+  white-space: normal; 
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  line-height: 1.25;
+}
+
+.table tr:hover td {
+  background: rgba(17, 27, 40, 0.28);
+}
+
+.table th,
+.table td {
+  text-align: left;
+}
+
+/* Keep numeric columns right aligned (optional, but usually cleaner) */
+.table th.right,
+.table td.right {
+  text-align: center;
+}
+
+#itemsTable td,
+#itemsTable th {
+  vertical-align: middle;
+}
+
+.input-readonly {
+  opacity: 0.75;
+}
+
+.table .c {
+  text-align: center;
+}
+
+#itemsTable {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Items table: deterministic layout */
+#itemsTable{ table-layout: fixed; width:100%; }
+#itemsTable th, #itemsTable td{ min-width:0; }
+
+.ctext{ text-align:center; }
+
+/* Actions: never wrap or shrink away */
+.row-actions{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+  flex-wrap: nowrap;
+}

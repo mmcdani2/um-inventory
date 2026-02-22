@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("counts:getTheoretical", payload),
   countsSubmit: (payload) => ipcRenderer.invoke("counts:submit", payload),
   reportsSuggestedOrders: () => ipcRenderer.invoke("reports:suggestedOrders"),
+  itemsUpdate: (item) => ipcRenderer.invoke("items:update", item),
+  homeStats: () => ipcRenderer.invoke("home:stats"),
+  locationsUpdate: (loc) => ipcRenderer.invoke("locations:update", loc),
 });
 
 

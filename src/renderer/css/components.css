@@ -1,0 +1,247 @@
+.actions{display:flex; gap:10px}
+
+.btn{
+  background: transparent;
+  color: var(--text);
+  border:1px solid var(--border);
+  padding:10px 12px;
+  border-radius: 10px;
+  cursor:pointer;
+}
+.btn:hover{border-color:#2b3a52}
+.btn:disabled{opacity:.6; cursor:not-allowed}
+
+.btn-primary{
+  border-color: rgba(227,179,65,.45);
+  background: rgba(227,179,65,.10);
+}
+.btn-primary:hover{background: rgba(227,179,65,.16)}
+
+.nav a{
+  text-decoration:none;
+  color: var(--text);
+  padding: 10px 10px;
+  border-radius: 10px;
+  border:1px solid transparent;
+  display:block;
+}
+.nav a:hover{border-color:#2b3a52; background: rgba(17,27,40,.55)}
+.nav a.active{
+  border-color: rgba(227,179,65,.45);
+  background: rgba(227,179,65,.10);
+}
+
+.page-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px}
+.page-actions{display:flex; gap:10px; flex-wrap:wrap}
+.page-title{font-size:20px; font-weight:800; margin-bottom:6px}
+.page-sub{color:var(--muted); font-size:13px}
+
+.msg{font-size:12px; color:var(--muted); margin-top:10px}
+.msg.err{color:#ffb4b4}
+
+.input{
+  background: rgba(7,10,14,.55);
+  border:1px solid var(--border);
+  color: var(--text);
+  padding:10px 10px;
+  border-radius: 10px;
+  outline:none;
+}
+.input:focus{border-color:#2b3a52}
+
+.input-mini{
+  padding:8px 10px;
+  border-radius:10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.kpi-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap:12px;
+  margin-bottom: 14px;
+}
+@media (max-width: 980px){
+  .kpi-grid{grid-template-columns: repeat(2, minmax(160px, 1fr));}
+}
+
+.kpi{
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15,22,32,.55);
+  padding: 12px;
+}
+.kpi-k{color:var(--muted); font-size:12px; letter-spacing:.06em; text-transform:uppercase}
+.kpi-v{font-size:28px; font-weight:800; margin-top:8px}
+
+.card-row{display:flex; gap:12px}
+.card-block{
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15,22,32,.55);
+  padding: 12px;
+  width: 100%;
+}
+.quick-grid{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.split{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+@media (max-width: 980px){
+  .split{grid-template-columns: 1fr;}
+}
+
+/* Home layout polish */
+.home-table{
+  max-height: 180px;   /* keeps it from eating the page */
+  overflow: auto;
+}
+
+/* Make quick actions feel like primary controls */
+.quick-grid .btn{
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+/* KPIs: center content + fit to data */
+.kpi-grid{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap:12px;
+  margin-bottom: 14px;
+}
+@media (max-width: 980px){
+  .kpi-grid{grid-template-columns: repeat(2, minmax(160px, 1fr));}
+}
+.kpi{
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(15,22,32,.55);
+  padding: 12px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;         /* center horizontally */
+  justify-content:center;     /* center vertically */
+  text-align:center;
+  min-height: 84px;
+}
+.kpi-k{
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.kpi-v{
+  font-size:30px;
+  font-weight:900;
+  margin-top:6px;
+  line-height: 1;
+  width: fit-content;         /* “fit to data” feel */
+}
+
+/* Split layout */
+.split{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+@media (max-width: 980px){
+  .split{grid-template-columns: 1fr;}
+}
+
+/* Add Location: one-line, centered */
+.inline-form{
+  display:flex;
+  gap:10px;
+  align-items:left;
+  justify-content:left;
+  margin-top:10px;
+  margin-bottom:10px;
+}
+.inline-form .input{
+  width: 100%;
+  max-width: 320px;
+}
+.inline-form .btn{
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+/* Locations table height */
+.home-table{
+  margin-top: 10px;
+  max-height: 210px;
+  overflow: auto;
+}
+
+/* Quick Actions: fill card + stand out */
+.quick-card{
+  display:flex;
+  flex-direction:column;
+}
+.quick-grid.big{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap:12px;
+  margin-top:12px;
+  flex: 1 1 auto;
+  align-content: start;
+}
+@media (max-width: 980px){
+  .quick-grid.big{grid-template-columns: repeat(2, minmax(140px, 1fr));}
+}
+.btn.qa{
+  padding: 18px 16px;
+  border-radius: 14px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  border-color: rgba(227,179,65,.35);
+  background: rgba(227,179,65,.08);
+}
+.btn.qa:hover{
+  background: rgba(227,179,65,.14);
+  border-color: rgba(227,179,65,.55);
+}
+
+.menu{ position: relative; }
+.menu-panel{
+  position:absolute;
+  right:0;
+  top: 44px;
+  min-width: 220px;
+  border:1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15,22,32,.95);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 50;
+}
+.menu-item{
+  width:100%;
+  text-align:left;
+  background: transparent;
+  color: var(--text);
+  border:1px solid transparent;
+  padding:10px 10px;
+  border-radius: 10px;
+  cursor:pointer;
+}
+.menu-item:hover{ border-color:#2b3a52; background: rgba(17,27,40,.55); }
+
+/* Hide number spinners (cleaner UI) */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+/* Center inputs visually inside centered table cells */
+.table td.c .input{
+  text-align: center;
+}

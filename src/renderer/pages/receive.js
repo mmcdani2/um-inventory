@@ -26,6 +26,21 @@
     rItem.innerHTML = `<option value="">Select...</option>` + items.map(i =>
       `<option value="${i.id}">${escapeHtml(i.sku)} — ${escapeHtml(i.description)}</option>`
     ).join("");
+
+    const preselectItemId = sessionStorage.getItem("receive:preselectItemId");
+    if (preselectItemId) {
+      sessionStorage.removeItem("receive:preselectItemId");
+      rItem.value = preselectItemId;
+      if (rItem.value === preselectItemId) {
+        const resetLoc = sessionStorage.getItem("receive:resetLocation");
+        if (resetLoc) {
+          sessionStorage.removeItem("receive:resetLocation");
+          rLoc.value = "";
+        }
+        setMsg("Select a location and enter Qty to receive.");
+        setTimeout(() => rLoc.focus(), 0);
+      }
+    }
   }
 
   async function submit() {

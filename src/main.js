@@ -25,6 +25,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1100,
     height: 750,
+    minWidth: 1180,
+    minHeight: 720,
     backgroundColor: "#0b0f14",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -32,6 +34,8 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  win.maximize();
 
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 }
@@ -92,7 +96,19 @@ app.whenReady().then(() => {
   ipcMain.handle("reports:suggestedOrders", () => {
     return dbLayer.getSuggestedOrders(db);
   });
-    
+
+  ipcMain.handle("items:update", (_evt, item) => {
+    return dbLayer.updateItem(db, item);
+  });
+
+  ipcMain.handle("home:stats", () => {
+    return dbLayer.getHomeStats(db);
+  });
+
+  ipcMain.handle("locations:update", (_evt, loc) => {
+    return dbLayer.updateLocation(db, loc);
+  });
+
   createWindow();
 
   app.on("activate", () => {
