@@ -1,9 +1,9 @@
 ﻿import { toCsv, downloadCsv } from "../utils/csv.js";
 
 export async function mountReports() {
-  const btnRefresh = document.getElementById("repRefresh");
-  const btnExpOn = document.getElementById("expOnhand");
-  const btnExpSo = document.getElementById("expSO");
+  const btnRefresh = document.getElementById("reportsRefresh");
+  const btnExpOn = document.getElementById("btnExportOnHand");
+  const btnExpSo = document.getElementById("btnExportSuggested");
 
   const onhandBody = document.querySelector("#repTable tbody");
   const repHint = document.getElementById("repHint");
