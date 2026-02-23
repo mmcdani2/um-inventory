@@ -87,26 +87,36 @@
     const open = () => rItemResults.classList.remove("hidden");
 
     const render = (q) => {
-      const needle = String(q || "")
-        .trim()
-        .toLowerCase();
+            const needle = String(q || "").trim().toLowerCase();
       if (!needle) {
         rItemResults.innerHTML = "";
         close();
         return;
       }
 
-      const hits = items
-        .filter((i) =>
-          `${i.sku} ${i.description}`.toLowerCase().includes(needle),
-        )
-        .slice(0, 12);
+      // 1) Barcode-first: exact match -> instant select (no dropdown scrolling)
+      const exactByBarcode = items.find((i) => {
+        const bc = String(i.barcode ?? "").trim().toLowerCase();
+        return bc && bc === needle;
+      });
 
-      if (!hits.length) {
-        rItemResults.innerHTML = `<div class="combo-empty">No matches</div>`;
-        open();
+      if (exactByBarcode) {
+        rItem.value = String(exactByBarcode.id);
+        rItemSearch.value = `${exactByBarcode.sku} — ${exactByBarcode.description}`;
+        rItemResults.innerHTML = "";
+        close();
+        rQty.focus();
         return;
       }
+
+      // 2) Fallback: normal contains search (sku/desc/barcode)
+      const hits = items
+        .filter((i) =>
+          `${i.sku} ${i.description} ${i.barcode ?? ""}`
+            .toLowerCase()
+            .includes(needle),
+        )
+        .slice(0, 12);
 
       rItemResults.innerHTML = hits
         .map(

@@ -6,12 +6,12 @@
     <div class="form-grid">
       <label class="field">
         <div class="lbl">Job # *</div>
-        <input id="cJob" class="input" placeholder="e.g. 25-1042" />
+        <input id="cJob" class="input" />
       </label>
 
       <label class="field">
         <div class="lbl">Tech *</div>
-        <input id="cTech" class="input" placeholder="e.g. Davin" />
+        <input id="cTech" class="input" />
       </label>
 
       <label class="field">
@@ -21,7 +21,10 @@
 
       <label class="field span-2">
         <div class="lbl">Item *</div>
-        <select id="cItem" class="input"></select>
+        <input id="cItemSearch" class="input" placeholder="Scan barcode or type SKU/description..."
+          autocomplete="off" />
+        <div id="cItemResults" class="picklist hidden"></div>
+        <select id="cItem" class="input hidden"></select>
       </label>
 
       <label class="field">

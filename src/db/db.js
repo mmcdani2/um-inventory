@@ -23,10 +23,22 @@ function ensureSchema(db, schemaFilePath) {
   `);
 
   const v = db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value;
+
   if (!v) {
     const schemaSql = fs.readFileSync(schemaFilePath, "utf8");
     db.exec(schemaSql);
     db.prepare("INSERT INTO app_meta(key,value) VALUES(?,?)").run("schema_version", "1");
+  }
+
+  // Migration v1 -> v2: enforce unique barcode (allow NULL/blank)
+  const cur = Number(db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 1);
+  if (cur < 2) {
+    db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_items_barcode
+    ON items(barcode)
+    WHERE barcode IS NOT NULL AND TRIM(barcode) <> '';
+  `);
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("2", "schema_version");
   }
 }
 
@@ -103,7 +115,10 @@ function createItem(db, item) {
       .get(res.lastInsertRowid);
   } catch (e) {
     if (String(e.message).includes("UNIQUE")) {
-      throw new Error("SKU/Part # already exists.");
+      const msg = String(e.message);
+      if (msg.includes("items.sku")) throw new Error("SKU/Part # already exists.");
+      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode")) throw new Error("Barcode already exists.");
+      throw new Error("Duplicate value (SKU or Barcode).");
     }
     throw e;
   }
@@ -468,7 +483,10 @@ function updateItem(db, item) {
     return db.prepare("SELECT * FROM items WHERE id=?").get(id);
   } catch (e) {
     if (String(e.message).includes("UNIQUE")) {
-      throw new Error("SKU/Part # already exists.");
+      const msg = String(e.message);
+      if (msg.includes("items.sku")) throw new Error("SKU/Part # already exists.");
+      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode")) throw new Error("Barcode already exists.");
+      throw new Error("Duplicate value (SKU or Barcode).");
     }
     throw e;
   }

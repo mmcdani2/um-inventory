@@ -12,7 +12,7 @@ export async function mountItems() {
 
   const tbody = document.querySelector("#itemsTable tbody");
   const msg = document.getElementById("itemsMsg");
-  const hint = document.getElementById("itemsHint"); // optional (safe if missing)
+  const hint = document.getElementById("itemsHint"); // optional
   const btnExportItemsCsv = document.getElementById("btnExportItemsCsv");
 
   let items = [];
@@ -46,17 +46,17 @@ export async function mountItems() {
     </label>
 
     <label class="field span-2">
-  <div class="lbl">Barcode</div>
-  <input id="eBarcode" class="input mono" value="${esc(item.barcode || "")}" />
-</label>
+      <div class="lbl">Barcode</div>
+      <input id="eBarcode" class="input mono" value="${esc(item.barcode || "")}" />
+    </label>
 
     <label class="field">
-      <div class="lbl">Reorder Pt</div>
+      <div class="lbl">Par</div>
       <input id="eRP" class="input" type="number" step="1" value="${num(item.reorder_point)}" />
     </label>
 
     <label class="field">
-      <div class="lbl">Reorder Qty</div>
+      <div class="lbl">Restock</div>
       <input id="eRQ" class="input" type="number" step="1" value="${num(item.reorder_qty)}" />
     </label>
 
@@ -78,24 +78,15 @@ export async function mountItems() {
       ["eCategory", "eUnit", "eDesc", "eBarcode", "eRP", "eRQ", "eCost"].forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
-
         el.addEventListener("focus", () => el.select());
-        el.addEventListener("mouseup", (e) => {
-          // keep the selection; don't place caret
-          e.preventDefault();
-        });
+        el.addEventListener("mouseup", (ev) => ev.preventDefault());
       });
 
       const eCost = document.getElementById("eCost");
-
-      // show $ on blur
       eCost?.addEventListener("blur", () => {
         const n = Number(String(eCost.value || "").replace(/[$,]/g, ""));
-        const v = Number.isFinite(n) ? n : 0;
-        eCost.value = `$${v.toFixed(2)}`;
+        eCost.value = `$${(Number.isFinite(n) ? n : 0).toFixed(2)}`;
       });
-
-      // remove $ on focus so typing is clean
       eCost?.addEventListener("focus", () => {
         eCost.value = String(eCost.value || "").replace(/[$,]/g, "");
         eCost.select();
@@ -104,8 +95,9 @@ export async function mountItems() {
       document.getElementById("eSave").addEventListener("click", async () => {
         const eMsg = document.getElementById("eMsg");
         eMsg.textContent = "";
-        const costEl = document.getElementById("eCost");
-        costEl?.dispatchEvent(new Event("blur"));
+
+        document.getElementById("eCost")?.dispatchEvent(new Event("blur"));
+
         try {
           await window.api.itemsUpdate({
             id,
@@ -115,17 +107,15 @@ export async function mountItems() {
             barcode: document.getElementById("eBarcode").value,
             reorder_point: document.getElementById("eRP").value,
             reorder_qty: document.getElementById("eRQ").value,
-            default_cost: String(
-              document.getElementById("eCost").value || "",
-            ).replace(/[$,]/g, ""),
+            default_cost: String(document.getElementById("eCost").value || "").replace(/[$,]/g, ""),
           });
 
           window.dispatchEvent(new CustomEvent("data:changed"));
           await load();
           document.getElementById("itemsModal").classList.add("hidden");
           setMsg("Saved.");
-        } catch (e) {
-          eMsg.textContent = e.message || "Failed to save.";
+        } catch (err) {
+          eMsg.textContent = err.message || "Failed to save.";
           eMsg.classList.add("err");
         }
       });
@@ -154,8 +144,8 @@ export async function mountItems() {
             </thead>
             <tbody>
               ${hits
-            .map(
-              (h) => `
+                .map(
+                  (h) => `
                 <tr>
                   <td class="mono">${esc(h.location_code)}</td>
                   <td>${esc(h.location_name || "")}</td>
@@ -163,8 +153,8 @@ export async function mountItems() {
                   <td class="mono">${esc(h.updated_at || "")}</td>
                 </tr>
               `,
-            )
-            .join("")}
+                )
+                .join("")}
             </tbody>
           </table>
         </div>
@@ -172,10 +162,8 @@ export async function mountItems() {
           : `<div class="hint">No on-hand rows yet. This SKU has not been received into any Area.</div>`;
 
         openModal(`Locations — ${sku}`, html);
-        return;
       } catch (err) {
         setMsg(`Locations modal error: ${err?.message || err}`, true);
-        return;
       }
     }
   });
@@ -232,12 +220,12 @@ export async function mountItems() {
   document.addEventListener("click", () => toggleMenu(false));
   menuPanel.addEventListener("click", (e) => e.stopPropagation());
 
-  // Items search (client-side filter)
   function wireItemsSearch() {
     const input = document.getElementById("itemsSearch");
-    input.addEventListener("focus", () => input.select());
     const clear = document.getElementById("itemsSearchClear");
     if (!input || !clear || !tbody) return;
+
+    input.addEventListener("focus", () => input.select());
 
     const apply = () => {
       const q = input.value.trim().toLowerCase();
@@ -263,12 +251,9 @@ export async function mountItems() {
     tbody.innerHTML = items.map((i) => rowHtml(i)).join("");
 
     if (hint) {
-      hint.textContent = items.length
-        ? `${items.length} item(s)`
-        : "No items yet.";
+      hint.textContent = items.length ? `${items.length} item(s)` : "No items yet.";
     }
 
-    // Re-apply current filter after rebuild
     document.getElementById("itemsSearch")?.dispatchEvent(new Event("input"));
   }
 
@@ -281,8 +266,6 @@ export async function mountItems() {
     tr.innerHTML = newRowHtml();
     tbody.prepend(tr);
 
-    // Select-all on focus for the add-row inputs (so you can click and type immediately).
-    // For <input type="number">, select() can throw, so we fall back to clearing on first input.
     tr.querySelectorAll("input").forEach((input) => {
       const trySelectAll = () => {
         try {
@@ -295,15 +278,10 @@ export async function mountItems() {
 
       input.addEventListener("focus", () => {
         if (input.disabled || input.readOnly) return;
-        // Defer so the click that focused the input doesn't clear selection/caret.
         setTimeout(() => {
-          if (input.type === "number") {
-            input.dataset.autoclear = "1";
-          } else if (trySelectAll()) {
-            input.dataset.autoselect = "1";
-          } else {
-            input.dataset.autoclear = "1";
-          }
+          if (input.type === "number") input.dataset.autoclear = "1";
+          else if (trySelectAll()) input.dataset.autoselect = "1";
+          else input.dataset.autoclear = "1";
         }, 0);
       });
 
@@ -318,8 +296,7 @@ export async function mountItems() {
         if (input.dataset.autoselect === "1") delete input.dataset.autoselect;
 
         if (input.dataset.autoclear === "1") {
-          const isPrintable =
-            e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+          const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
           if (isPrintable || e.key === "Backspace" || e.key === "Delete") {
             input.value = "";
             delete input.dataset.autoclear;
@@ -335,11 +312,9 @@ export async function mountItems() {
       });
     });
 
-    tr.querySelector("input[name='sku']").focus();
+    tr.querySelector("input[name='barcode']").focus();
 
-    tr.querySelector("[data-cancel]").addEventListener("click", () =>
-      tr.remove(),
-    );
+    tr.querySelector("[data-cancel]").addEventListener("click", () => tr.remove());
 
     tr.querySelector("[data-save]").addEventListener("click", async () => {
       setMsg("");
@@ -348,11 +323,10 @@ export async function mountItems() {
       try {
         await window.api.itemsCreate(data);
         setMsg("Added.");
-
         window.dispatchEvent(new CustomEvent("data:changed"));
         await load();
-      } catch (e) {
-        setMsg(e.message || "Failed to add item.", true);
+      } catch (err) {
+        setMsg(err.message || "Failed to add item.", true);
       }
     });
   }
@@ -360,12 +334,13 @@ export async function mountItems() {
   function downloadTemplate() {
     const headers = [
       { key: "category", label: "Category" },
+      { key: "barcode", label: "Barcode" },
       { key: "sku", label: "SKU / Part #" },
       { key: "description", label: "Description" },
       { key: "unit", label: "Unit" },
       { key: "on_hand", label: "On Hand" },
-      { key: "reorder_point", label: "Reorder Pt" },
-      { key: "reorder_qty", label: "Reorder Qty" },
+      { key: "reorder_point", label: "Par" },
+      { key: "reorder_qty", label: "Restock" },
       { key: "cost", label: "Cost" },
       { key: "actions", label: "Actions" },
     ];
@@ -373,8 +348,9 @@ export async function mountItems() {
     const example = [
       {
         category: "Electrical",
-        sku: "CAP-35-7.5",
-        description: "35/5 MFD Run Capacitor",
+        barcode: "036000291452",
+        sku: "CAP-35-5",
+        description: "Run Capacitor 35/5 MFD",
         unit: "EA",
         on_hand: "0",
         reorder_point: "2",
@@ -414,8 +390,8 @@ export async function mountItems() {
       setMsg(`Imported ${Number(res?.imported ?? 0)} item(s).`);
       window.dispatchEvent(new CustomEvent("data:changed"));
       await load();
-    } catch (e) {
-      setMsg(e.message || "Failed to import CSV.", true);
+    } catch (err) {
+      setMsg(err.message || "Failed to import CSV.", true);
     } finally {
       btnImportCsv.disabled = false;
       btnTemplateCsv.disabled = false;
@@ -426,26 +402,26 @@ export async function mountItems() {
     setMsg("");
     toggleMenu(false);
 
-    // Ensure latest data
     await load();
-
     const asOf = new Date().toISOString();
 
     const headers = [
       { key: "as_of", label: "As Of" },
       { key: "category", label: "Category" },
+      { key: "barcode", label: "Barcode" },
       { key: "sku", label: "SKU / Part #" },
       { key: "description", label: "Description" },
       { key: "unit", label: "Unit" },
       { key: "on_hand_total", label: "On Hand Total" },
-      { key: "reorder_point", label: "Reorder Pt" },
-      { key: "reorder_qty", label: "Reorder Qty" },
+      { key: "reorder_point", label: "Par" },
+      { key: "reorder_qty", label: "Restock" },
       { key: "default_cost", label: "Cost" },
     ];
 
     const rows = items.map((i) => ({
       as_of: asOf,
       category: i.category ?? "",
+      barcode: i.barcode ?? "",
       sku: i.sku ?? "",
       description: i.description ?? "",
       unit: i.unit ?? "",
@@ -456,7 +432,6 @@ export async function mountItems() {
     }));
 
     const csv = toCsv(rows, headers);
-
     const stamp = asOf.replace(/[:.]/g, "-");
     downloadCsv(`items_snapshot_${stamp}.csv`, csv);
   });
@@ -474,10 +449,8 @@ function rowHtml(i) {
   return `
     <tr data-id="${i.id}" data-sku="${esc(i.sku)}" data-barcode="${esc(i.barcode || "")}">
       <td>${esc(i.category)}</td>
-      <td class="mono">
-  ${esc(i.sku)}
-  ${i.barcode ? `<div style="margin-top:4px; font-size:11px; color: var(--muted);">⌁ ${esc(i.barcode)}</div>` : ""}
-</td>
+      <td class="mono">${esc(i.barcode || "")}</td>
+      <td class="mono">${esc(i.sku)}</td>
       <td title="${esc(i.description)}">${esc(i.description)}</td>
       <td class="c">${esc(i.unit)}</td>
       <td class="c mono">${num(i.on_hand_total)}</td>
@@ -485,11 +458,11 @@ function rowHtml(i) {
       <td class="c mono">${num(i.reorder_qty)}</td>
       <td class="c mono">${money(i.default_cost)}</td>
       <td class="c">
-  <div class="row-actions">
-    <button class="btn" data-edit="${i.id}">Edit</button>
-    <button class="btn" data-locs="${esc(i.sku)}">Locations</button>
-  </div>
-</td>
+        <div class="row-actions">
+          <button class="btn" data-edit="${i.id}">Edit</button>
+          <button class="btn" data-locs="${esc(i.sku)}">Locations</button>
+        </div>
+      </td>
     </tr>
   `;
 }
@@ -497,14 +470,8 @@ function rowHtml(i) {
 function newRowHtml() {
   return `
     <td><input class="input input-mini" name="category" placeholder="Category" /></td>
-
-    <td>
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <input class="input input-mini mono" name="sku" placeholder="SKU*" />
-        <input class="input input-mini mono" name="barcode" placeholder="Barcode (optional)" />
-      </div>
-    </td>
-
+    <td><input class="input input-mini mono" name="barcode" placeholder="Barcode" /></td>
+    <td><input class="input input-mini mono" name="sku" placeholder="SKU*" /></td>
     <td><input class="input input-mini" name="description" placeholder="Description*" /></td>
 
     <td class="c"><input class="input input-mini ctext" name="unit" value="EA" /></td>
@@ -527,8 +494,8 @@ function newRowHtml() {
 function readRow(tr) {
   const v = (name) => tr.querySelector(`[name='${name}']`)?.value ?? "";
   return {
-    sku: v("sku"),
     barcode: v("barcode"),
+    sku: v("sku"),
     description: v("description"),
     category: v("category"),
     unit: v("unit") || "EA",
@@ -541,31 +508,25 @@ function readRow(tr) {
 function parseItemsCsv(csvText) {
   const expectedHeaders = [
     "Category",
+    "Barcode",
     "SKU / Part #",
     "Description",
     "Unit",
     "On Hand",
-    "Reorder Pt",
-    "Reorder Qty",
+    "Par",
+    "Restock",
     "Cost",
     "Actions",
   ];
 
-  const rows = parseCsv(csvText).filter((r) =>
-    r.some((c) => String(c ?? "").trim() !== ""),
-  );
+  const rows = parseCsv(csvText).filter((r) => r.some((c) => String(c ?? "").trim() !== ""));
   if (rows.length === 0) throw new Error("CSV is empty.");
 
   const headerRow = rows[0].map((h) => normalizeHeader(h));
   const expectedNorm = expectedHeaders.map((h) => normalizeHeader(h));
 
-  if (
-    headerRow.length !== expectedNorm.length ||
-    headerRow.some((h, i) => h !== expectedNorm[i])
-  ) {
-    throw new Error(
-      `CSV headers must match Items table exactly:\n${expectedHeaders.join(", ")}`,
-    );
+  if (headerRow.length !== expectedNorm.length || headerRow.some((h, i) => h !== expectedNorm[i])) {
+    throw new Error(`CSV headers must match Items table exactly:\n${expectedHeaders.join(", ")}`);
   }
 
   const errors = [];
@@ -573,7 +534,7 @@ function parseItemsCsv(csvText) {
   const seenSku = new Set();
 
   for (let i = 1; i < rows.length; i++) {
-    const rowNum = i + 1; // 1-based in file
+    const rowNum = i + 1;
     const r = [...rows[i]];
     while (r.length < expectedHeaders.length) r.push("");
     if (r.length > expectedHeaders.length) {
@@ -584,6 +545,7 @@ function parseItemsCsv(csvText) {
     const rowErrors = [];
     const [
       category,
+      barcode,
       sku,
       description,
       unit,
@@ -594,50 +556,20 @@ function parseItemsCsv(csvText) {
       actions,
     ] = r.map((x) => String(x ?? "").trim());
 
+    const reorderPointNum = parseOptionalNumber(reorderPoint, rowNum, "Par", rowErrors);
+    const reorderQtyNum = parseOptionalNumber(reorderQty, rowNum, "Restock", rowErrors);
+    const costNum = parseOptionalNumber(cost, rowNum, "Cost", rowErrors);
+
+    // Keep these columns in template for human familiarity, but enforce: blank only
+    if (onHand) rowErrors.push(`Row ${rowNum}: On Hand must be blank (stock comes from Receive/Counts).`);
+    if (actions) rowErrors.push(`Row ${rowNum}: Actions must be blank.`);
+
     if (!sku) rowErrors.push(`Row ${rowNum}: SKU / Part # is required.`);
     if (!description) rowErrors.push(`Row ${rowNum}: Description is required.`);
 
     const skuKey = sku.toLowerCase();
-    if (sku && seenSku.has(skuKey))
-      rowErrors.push(`Row ${rowNum}: duplicate SKU.`);
+    if (sku && seenSku.has(skuKey)) rowErrors.push(`Row ${rowNum}: duplicate SKU.`);
     if (sku) seenSku.add(skuKey);
-
-    const onHandNum = parseOptionalNumber(onHand, rowNum, "On Hand", rowErrors);
-    if (onHandNum !== null && onHandNum !== 0) {
-      rowErrors.push(
-        `Row ${rowNum}: On Hand must be blank or 0 (receive into a location instead).`,
-      );
-    }
-    if (onHandNum !== null && !Number.isInteger(onHandNum)) {
-      rowErrors.push(`Row ${rowNum}: On Hand must be a whole number.`);
-    }
-
-    const reorderPointNum = parseOptionalNumber(
-      reorderPoint,
-      rowNum,
-      "Reorder Pt",
-      rowErrors,
-    );
-    const reorderQtyNum = parseOptionalNumber(
-      reorderQty,
-      rowNum,
-      "Reorder Qty",
-      rowErrors,
-    );
-    const costNum = parseOptionalNumber(cost, rowNum, "Cost", rowErrors);
-
-    if (reorderPointNum !== null && reorderPointNum < 0)
-      rowErrors.push(`Row ${rowNum}: Reorder Pt must be >= 0.`);
-    if (reorderPointNum !== null && !Number.isInteger(reorderPointNum))
-      rowErrors.push(`Row ${rowNum}: Reorder Pt must be a whole number.`);
-    if (reorderQtyNum !== null && reorderQtyNum < 0)
-      rowErrors.push(`Row ${rowNum}: Reorder Qty must be >= 0.`);
-    if (reorderQtyNum !== null && !Number.isInteger(reorderQtyNum))
-      rowErrors.push(`Row ${rowNum}: Reorder Qty must be a whole number.`);
-    if (costNum !== null && costNum < 0)
-      rowErrors.push(`Row ${rowNum}: Cost must be >= 0.`);
-
-    if (actions) rowErrors.push(`Row ${rowNum}: Actions must be blank.`);
 
     if (rowErrors.length) {
       errors.push(...rowErrors);
@@ -647,6 +579,7 @@ function parseItemsCsv(csvText) {
     itemsToCreate.push({
       __row: rowNum,
       sku,
+      barcode,
       description,
       category,
       unit: unit || "EA",
@@ -658,8 +591,7 @@ function parseItemsCsv(csvText) {
 
   if (errors.length) {
     const preview = errors.slice(0, 10).join("\n");
-    const more =
-      errors.length > 10 ? `\n…plus ${errors.length - 10} more.` : "";
+    const more = errors.length > 10 ? `\n…plus ${errors.length - 10} more.` : "";
     throw new Error(`CSV validation failed:\n${preview}${more}`);
   }
 
@@ -739,15 +671,10 @@ function parseCsv(text) {
     field += ch;
   }
 
-  // finalize
   if (inQuotes) throw new Error("CSV parse error: unmatched quote.");
   if (field.length || row.length) pushRow();
 
-  // drop trailing empty rows
-  while (
-    rows.length &&
-    rows[rows.length - 1].every((c) => String(c ?? "").trim() === "")
-  ) {
+  while (rows.length && rows[rows.length - 1].every((c) => String(c ?? "").trim() === "")) {
     rows.pop();
   }
   return rows;
@@ -765,15 +692,5 @@ function money(n) {
 }
 
 function esc(s) {
-  return String(s ?? "").replace(
-    /[&<>"']/g,
-    (c) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[c],
-  );
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }

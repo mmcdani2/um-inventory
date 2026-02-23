@@ -26,7 +26,9 @@
           <button id="btnTemplateCsv" class="menu-item">
             Download CSV Template
           </button>
-          <button id="btnExportItemsCsv" class="menu-item">Export Items Snapshot CSV</button>
+          <button id="btnExportItemsCsv" class="menu-item">
+            Export Items Snapshot CSV
+          </button>
         </div>
       </div>
     </div>
@@ -36,49 +38,38 @@
   <div class="table-wrap items-wrap">
     <table class="table" id="itemsTable">
       <colgroup>
-        <col style="width: 11%" />
-        <!-- Category -->
-        <col style="width: 12%" />
-        <!-- SKU -->
-        <col style="width: 24%" />
-        <!-- Description -->
-        <col style="width: 6%" />
-        <!-- Unit -->
-        <col style="width: 7%" />
-        <!-- On Hand -->
-        <col style="width: 8%" />
-        <!-- Reorder Pt -->
-        <col style="width: 8%" />
-        <!-- Reorder Qty -->
-        <col style="width: 8%" />
-        <!-- Cost -->
-        <col style="width: 16%" />
-        <!-- Actions -->
+        <col style="width: 12%" /> <!-- Category -->
+        <col style="width: 14%" /> <!-- Barcode -->
+        <col style="width: 14%" /> <!-- SKU -->
+        <col style="width: 22%" /> <!-- Description -->
+        <col style="width: 6%" />  <!-- Unit -->
+        <col style="width: 6%" />  <!-- OH -->
+        <col style="width: 6%" />  <!-- Par -->
+        <col style="width: 8%" />  <!-- Restock -->
+        <col style="width: 6%" />  <!-- Cost -->
+        <col style="width: 16%" /> <!-- Actions -->
       </colgroup>
 
       <thead>
         <tr>
-          <th>Category</th>
-          <th>SKU / Part #</th>
-          <th>Description</th>
-          <th class="c">Unit</th>
-          <th class="c">On Hand</th>
-          <th class="c">Reorder Pt</th>
-          <th class="c">Reorder Qty</th>
-          <th class="c">Cost</th>
-          <th class="c">Actions</th>
+          <th>CATEGORY</th>
+          <th>BARCODE</th>
+          <th>SKU / PART #</th>
+          <th>DESCRIPTION</th>
+          <th class="c">UNIT</th>
+          <th class="c">OH</th>
+          <th class="c">PAR</th>
+          <th class="c">RESTOCK</th>
+          <th class="c">COST</th>
+          <th class="c">ACTIONS</th>
         </tr>
       </thead>
+
       <tbody></tbody>
     </table>
   </div>
 
   <div class="msg" id="itemsMsg"></div>
 
-  <input
-    id="csvFile"
-    type="file"
-    accept=".csv,text/csv"
-    style="display: none"
-  />
+  <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
 </div>
