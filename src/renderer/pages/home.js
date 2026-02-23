@@ -149,6 +149,76 @@
     if (e.key === "Enter") save();
   });
 
+  document
+    .getElementById("btnExportInventoryCsv")
+    ?.addEventListener("click", async () => {
+      const [items, locs, onhandRows] = await Promise.all([
+        window.api.itemsList(),
+        window.api.locationsList(),
+        window.api.reportsOnHand(),
+      ]);
+
+      const asOf = new Date().toISOString();
+
+      const locCodes = locs
+        .map((l) => String(l.code || "").trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
+
+      // sku -> (locCode -> qty)
+      const bySku = new Map();
+      for (const r of onhandRows) {
+        const sku = String(r.sku ?? "").trim();
+        const loc = String(r.location_code ?? "").trim();
+        const qty = Number(r.on_hand ?? 0);
+        if (!sku || !loc) continue;
+
+        if (!bySku.has(sku)) bySku.set(sku, new Map());
+        const m = bySku.get(sku);
+        m.set(loc, (m.get(loc) ?? 0) + qty);
+      }
+
+      const headers = [
+        { key: "as_of", label: "As Of" },
+        { key: "category", label: "Category" },
+        { key: "sku", label: "SKU / Part #" },
+        { key: "description", label: "Description" },
+        { key: "unit", label: "Unit" },
+        { key: "reorder_point", label: "Reorder Pt" },
+        { key: "reorder_qty", label: "Reorder Qty" },
+        { key: "default_cost", label: "Cost" },
+        { key: "on_hand_total", label: "On Hand Total" },
+        ...locCodes.map((code) => ({ key: `loc_${code}`, label: code })),
+      ];
+
+      const rows = items.map((i) => {
+        const sku = String(i.sku ?? "").trim();
+        const locMap = bySku.get(sku) || new Map();
+
+        const row = {
+          as_of: asOf,
+          category: i.category ?? "",
+          sku,
+          description: i.description ?? "",
+          unit: i.unit ?? "",
+          reorder_point: Number(i.reorder_point ?? 0),
+          reorder_qty: Number(i.reorder_qty ?? 0),
+          default_cost: Number(i.default_cost ?? 0),
+          on_hand_total: Number(i.on_hand_total ?? 0),
+        };
+
+        for (const code of locCodes)
+          row[`loc_${code}`] = Number(locMap.get(code) ?? 0);
+        return row;
+      });
+
+      // Uses your existing CSV utils used on Items page
+      const { toCsv, downloadCsv } = await import("../utils/csv.js");
+      const csv = toCsv(rows, headers);
+      const stamp = asOf.replace(/[:.]/g, "-");
+      downloadCsv(`inventory_snapshot_${stamp}.csv`, csv);
+    });
+
   // Quick Actions: router uses #routeId (no slash)
   document.querySelectorAll("[data-go]").forEach((btn) => {
     btn.addEventListener("click", () => {

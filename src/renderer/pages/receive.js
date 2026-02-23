@@ -16,6 +16,10 @@
   const rCost = document.getElementById("rCost");
   const rNotes = document.getElementById("rNotes");
 
+  [rQty, rCost].forEach((el) =>
+    el?.addEventListener("focus", () => el.select()),
+  );
+
   // Guard: fail fast if HTML IDs don't match JS
   const missing = [];
   if (!msg) missing.push("rMsg");

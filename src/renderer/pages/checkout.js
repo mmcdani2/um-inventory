@@ -9,6 +9,10 @@
   const cQty = document.getElementById("cQty");
   const cNotes = document.getElementById("cNotes");
 
+  [cQty].forEach((el) =>
+    el?.addEventListener("focus", () => el.select()),
+  );
+
   function setMsg(t, err=false){ msg.textContent = t||""; msg.classList.toggle("err", !!err); }
 
   async function loadPickers() {

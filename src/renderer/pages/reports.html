@@ -1,20 +1,22 @@
 ﻿<div class="page">
   <div class="page-head">
     <div>
-      <div class="page-title">Reports</div>
-      <div class="page-sub">On-hand + Suggested Order</div>
+
     </div>
     <div class="page-actions">
-      <button id="repRefresh" class="btn">Refresh</button>
-      <button id="expOnhand" class="btn">Export On-hand CSV</button>
-      <button id="expSO" class="btn">Export Suggested CSV</button>
+  <div class="btn-group">
+    <button id="reportsRefresh" class="btn btn-primary">Refresh</button>
+<button id="btnExportOnHand" class="btn btn-primary">Export On-hand CSV</button>
+<button id="btnExportSuggested" class="btn btn-primary">Export Suggested CSV</button>
+  </div>
+</div>
     </div>
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="onhand">On-hand</button>
-    <button class="tab" data-tab="suggested">Suggested Order</button>
-  </div>
+  <button class="tab active" data-tab="onhand">On-hand</button>
+  <button class="tab" data-tab="suggested">Suggested Order</button>
+</div>
 
   <div id="repOnhand" class="tabpane">
     <div class="table-wrap">

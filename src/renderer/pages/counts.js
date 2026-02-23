@@ -59,28 +59,146 @@ export async function mountCounts() {
         window.api.locationsList(),
       ]);
 
-      const locByCode = new Map(locs.map((l) => [l.code, l]));
+      const itemBySku = new Map(items.map((i) => [String(i.sku), i]));
+      const locByCode = new Map(locs.map((l) => [String(l.code), l]));
+
+      // Prebuild location select options (All Areas rows)
+      const locOptionsHtml =
+        `<option value="">Select...</option>` +
+        locs
+          .slice()
+          .sort((a, b) => String(a.code).localeCompare(String(b.code)))
+          .map((l) => `<option value="${l.id}">${escapeHtml(l.code)}</option>`)
+          .join("");
+
+      // Build: location_id|sku -> on_hand (for theoretical lookup)
+      const onHandByLocSku = new Map();
+      for (const r of onhandRows) {
+        const loc = locByCode.get(String(r.location_code ?? ""));
+        if (!loc) continue;
+
+        const sku = String(r.sku ?? "");
+        const key = `${loc.id}|${sku}`;
+        const qty = Number(r.on_hand ?? 0);
+
+        onHandByLocSku.set(key, (onHandByLocSku.get(key) ?? 0) + qty);
+      }
 
       if (isAll) {
-        // rows = one per (location_code, sku) that exists in balances
-        const rows = onhandRows
-          .map((r) => {
-            const loc = locByCode.get(r.location_code);
-            return {
-              location_id: loc?.id || 0,
-              location_code: String(r.location_code ?? ""),
-              sku: String(r.sku ?? ""),
-              on_hand: Number(r.on_hand ?? 0),
-            };
-          })
-          .filter((r) => r.location_id);
+        // For each sku, detect if it exists in exactly one location (preselect)
+        const locIdsBySku = new Map(); // sku -> Set(location_id)
+        for (const r of onhandRows) {
+          const sku = String(r.sku ?? "");
+          const loc = locByCode.get(String(r.location_code ?? ""));
+          if (!sku || !loc) continue;
 
-        const itemBySku = new Map(items.map((i) => [String(i.sku), i]));
+          if (!locIdsBySku.has(sku)) locIdsBySku.set(sku, new Set());
+          locIdsBySku.get(sku).add(loc.id);
+        }
+
+        // Sort: preselected location_code (if exactly one) -> category -> sku
+        const sorted = [...items].sort((a, b) => {
+          const aSku = String(a.sku ?? "");
+          const bSku = String(b.sku ?? "");
+
+          const aSet = locIdsBySku.get(aSku);
+          const bSet = locIdsBySku.get(bSku);
+
+          const aLocId = aSet && aSet.size === 1 ? [...aSet][0] : 0;
+          const bLocId = bSet && bSet.size === 1 ? [...bSet][0] : 0;
+
+          const aCode = aLocId
+            ? locs.find((l) => l.id === aLocId)?.code || ""
+            : "ZZZ";
+          const bCode = bLocId
+            ? locs.find((l) => l.id === bLocId)?.code || ""
+            : "ZZZ";
+          if (aCode !== bCode) return aCode.localeCompare(bCode);
+
+          const aCat = String(a.category ?? "").toLowerCase();
+          const bCat = String(b.category ?? "").toLowerCase();
+          if (aCat !== bCat) return aCat.localeCompare(bCat);
+
+          return aSku.toLowerCase().localeCompare(bSku.toLowerCase());
+        });
+
+        tbody.innerHTML = sorted
+          .map((i) => {
+            const sku = String(i.sku ?? "");
+            const set = locIdsBySku.get(sku);
+            const preLocId = set && set.size === 1 ? String([...set][0]) : "";
+
+            const theo = preLocId
+              ? (onHandByLocSku.get(`${preLocId}|${sku}`) ?? 0)
+              : 0;
+
+            return `
+              <tr data-sku="${escapeHtml(sku)}" data-theo="${theo}">
+                <td>
+                  <select class="input input-mini" data-row-loc="1">
+                    ${locOptionsHtml}
+                  </select>
+                </td>
+                <td>${escapeHtml(i.category)}</td>
+                <td class="mono">${escapeHtml(i.sku)}</td>
+                <td>${escapeHtml(i.description)}</td>
+                <td class="right mono" data-theo-cell>${theo}</td>
+                <td class="right">
+                  <input class="input input-mini" data-actual="1" type="number" step="1" />
+                </td>
+                <td class="right mono" data-variance>0</td>
+                <td>${escapeHtml(i.unit)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        // Preselect location and update theoretical when location changes
+        tbody.querySelectorAll("tr").forEach((tr) => {
+          const sku = tr.dataset.sku;
+          const sel = tr.querySelector("[data-row-loc]");
+          const theoCell = tr.querySelector("[data-theo-cell]");
+          const inp = tr.querySelector("input[data-actual]");
+
+          // Preselect if exactly one location already holds it
+          const set = locIdsBySku.get(sku);
+          if (set && set.size === 1) sel.value = String([...set][0]);
+
+          const recalc = () => {
+            const locId = Number(sel.value || 0);
+            const theo = locId
+              ? (onHandByLocSku.get(`${locId}|${sku}`) ?? 0)
+              : 0;
+            tr.dataset.theo = String(theo);
+            theoCell.textContent = String(theo);
+
+            const act = Number(inp.value || 0);
+            tr.querySelector("[data-variance]").textContent = String(
+              act - theo,
+            );
+          };
+
+          sel.addEventListener("change", recalc);
+        });
+
+        hint.textContent = `All Areas: ${items.length} SKU(s). Pick a Location for each row you count.`;
+      } else {
+        const selectedLoc = locs.find(
+          (l) => String(l.id) === String(kLoc.value),
+        );
+        const locCode = selectedLoc?.code;
+
+        // Single location: only rows that exist in balances for that location
+        const rows = onhandRows
+          .filter(
+            (r) => String(r.location_code ?? "") === String(locCode ?? ""),
+          )
+          .map((r) => ({
+            sku: String(r.sku ?? ""),
+            theo: Number(r.on_hand ?? 0),
+          }));
 
         rows.sort((a, b) => {
-          if (a.location_code !== b.location_code)
-            return a.location_code.localeCompare(b.location_code);
-
           const ai = itemBySku.get(a.sku);
           const bi = itemBySku.get(b.sku);
 
@@ -95,43 +213,11 @@ export async function mountCounts() {
           .map((r) => {
             const i = itemBySku.get(r.sku);
             if (!i) return "";
-            return rowHtml(i, r.on_hand, r.location_code, r.location_id);
+            return rowHtmlSingle(i, r.theo);
           })
           .join("");
 
-        hint.textContent = `Loaded ${rows.length} row(s) for All Areas. Fill only what you counted.`;
-      } else {
-        const selectedLoc = locs.find(
-          (l) => String(l.id) === String(kLoc.value),
-        );
-        const locCode = selectedLoc?.code;
-
-        // Sum on-hand by SKU for this location
-        const onHandBySku = new Map();
-        for (const r of onhandRows) {
-          if (r.location_code !== locCode) continue;
-          const sku = String(r.sku ?? "");
-          const qty = Number(r.on_hand ?? 0);
-          onHandBySku.set(sku, (onHandBySku.get(sku) ?? 0) + qty);
-        }
-
-        const sorted = [...items].sort((a, b) => {
-          const aCat = String(a.category ?? "").toLowerCase();
-          const bCat = String(b.category ?? "").toLowerCase();
-          if (aCat !== bCat) return aCat.localeCompare(bCat);
-          return String(a.sku ?? "")
-            .toLowerCase()
-            .localeCompare(String(b.sku ?? "").toLowerCase());
-        });
-
-        tbody.innerHTML = sorted
-          .map((i) => {
-            const theo = onHandBySku.get(i.sku) ?? 0;
-            return rowHtml(i, theo, null, null);
-          })
-          .join("");
-
-        hint.textContent = `Loaded ${items.length} item(s) for ${locCode || "location"}. Fill only what you counted.`;
+        hint.textContent = `Loaded ${rows.length} row(s) for ${locCode || "location"}. Fill only what you counted.`;
       }
 
       // variance math on input
@@ -163,6 +249,7 @@ export async function mountCounts() {
     const itemIdBySku = new Map(items.map((i) => [String(i.sku), i.id]));
 
     const toSave = [];
+
     for (const tr of trs) {
       const inp = tr.querySelector("input[data-actual]");
       const raw = (inp?.value ?? "").trim();
@@ -183,11 +270,16 @@ export async function mountCounts() {
       if (!item_id) continue;
 
       const location_id = isAll
-        ? Number(tr.dataset.locationId || 0)
+        ? Number(tr.querySelector("[data-row-loc]")?.value || 0)
         : Number(kLoc.value || 0);
 
-      if (!location_id)
-        return setMsg("Missing location on one or more rows. Reload.", true);
+      if (isAll && !location_id) {
+        inp?.classList.add("bad");
+        return setMsg(
+          "Pick a Location for each row you count (All Areas mode).",
+          true,
+        );
+      }
 
       toSave.push({ item_id, location_id, actual_qty: actual });
     }
@@ -220,14 +312,9 @@ export async function mountCounts() {
   await loadLocations();
 }
 
-function rowHtml(i, theo, areaLabel, locationId) {
-  const isAllRow = locationId != null;
-
+function rowHtmlSingle(i, theo) {
   return `
-    <tr data-sku="${escapeHtml(i.sku)}" data-theo="${theo}" ${
-      isAllRow ? `data-location-id="${Number(locationId)}"` : ""
-    }>
-      ${isAllRow ? `<td class="mono">${escapeHtml(areaLabel || "")}</td>` : ""}
+    <tr data-sku="${escapeHtml(i.sku)}" data-theo="${theo}">
       <td>${escapeHtml(i.category)}</td>
       <td class="mono">${escapeHtml(i.sku)}</td>
       <td>${escapeHtml(i.description)}</td>

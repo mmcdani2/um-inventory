@@ -13,6 +13,7 @@ export async function mountItems() {
   const tbody = document.querySelector("#itemsTable tbody");
   const msg = document.getElementById("itemsMsg");
   const hint = document.getElementById("itemsHint"); // optional (safe if missing)
+  const btnExportItemsCsv = document.getElementById("btnExportItemsCsv");
 
   let items = [];
 
@@ -412,6 +413,45 @@ export async function mountItems() {
       btnImportCsv.disabled = false;
       btnTemplateCsv.disabled = false;
     }
+  });
+
+  btnExportItemsCsv?.addEventListener("click", async () => {
+    setMsg("");
+    toggleMenu(false);
+
+    // Ensure latest data
+    await load();
+
+    const asOf = new Date().toISOString();
+
+    const headers = [
+      { key: "as_of", label: "As Of" },
+      { key: "category", label: "Category" },
+      { key: "sku", label: "SKU / Part #" },
+      { key: "description", label: "Description" },
+      { key: "unit", label: "Unit" },
+      { key: "on_hand_total", label: "On Hand Total" },
+      { key: "reorder_point", label: "Reorder Pt" },
+      { key: "reorder_qty", label: "Reorder Qty" },
+      { key: "default_cost", label: "Cost" },
+    ];
+
+    const rows = items.map((i) => ({
+      as_of: asOf,
+      category: i.category ?? "",
+      sku: i.sku ?? "",
+      description: i.description ?? "",
+      unit: i.unit ?? "",
+      on_hand_total: Number(i.on_hand_total ?? 0),
+      reorder_point: Number(i.reorder_point ?? 0),
+      reorder_qty: Number(i.reorder_qty ?? 0),
+      default_cost: Number(i.default_cost ?? 0),
+    }));
+
+    const csv = toCsv(rows, headers);
+
+    const stamp = asOf.replace(/[:.]/g, "-");
+    downloadCsv(`items_snapshot_${stamp}.csv`, csv);
   });
 
   btnAddRow.addEventListener("click", addEditableRow);

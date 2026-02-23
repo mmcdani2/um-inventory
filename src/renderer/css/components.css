@@ -604,3 +604,33 @@ input[type="number"] {
   padding-top: 12px;
   border-top: 1px solid var(--border);
 }
+
+/* Reports segmented tabs */
+.tabs{
+  display:inline-flex;
+  border:1px solid var(--border);
+  border-radius: 12px;
+  overflow:hidden;
+  background: rgba(15,22,32,.55);
+  margin-bottom: 12px; /* fixes squish vs table header */
+}
+
+.tab{
+  appearance: none;
+  border:0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover{
+  background: rgba(227,179,65,.10);
+  color: var(--text);
+}
+
+.tab.active{
+  background: rgba(227,179,65,.18);
+  color: var(--text);
+}
