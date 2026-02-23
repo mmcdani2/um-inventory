@@ -16,26 +16,171 @@ export async function mountItems() {
 
   let items = [];
 
-  tbody.addEventListener("click", (e) => {
+  tbody.addEventListener("click", async (e) => {
     const editBtn = e.target.closest("[data-edit]");
     const locBtn = e.target.closest("[data-locs]");
 
     if (editBtn) {
       const id = Number(editBtn.dataset.edit);
-      setMsg(`Edit not wired yet (id=${id}).`);
+      const item = items.find((x) => Number(x.id) === id);
+      if (!item) return;
+
+      openModal(
+        `Edit — ${item.sku}`,
+        `
+    <div class="form-grid">
+      <label class="field">
+        <div class="lbl">Category</div>
+        <input id="eCategory" class="input" value="${esc(item.category || "")}" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Unit</div>
+        <input id="eUnit" class="input" value="${esc(item.unit || "")}" />
+      </label>
+
+      <label class="field span-2">
+        <div class="lbl">Description</div>
+        <input id="eDesc" class="input" value="${esc(item.description || "")}" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Reorder Pt</div>
+        <input id="eRP" class="input" type="number" step="1" value="${num(item.reorder_point)}" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Reorder Qty</div>
+        <input id="eRQ" class="input" type="number" step="1" value="${num(item.reorder_qty)}" />
+      </label>
+
+      <label class="field">
+        <div class="lbl">Cost</div>
+        <input id="eCost" class="input" inputmode="decimal" value="${Number(item.default_cost ?? 0)}" />
+      </label>
+
+      <div class="row">
+        <button id="eSave" class="btn btn-primary">Save</button>
+        <button class="btn" data-close>Cancel</button>
+      </div>
+      <div class="msg" id="eMsg"></div>
+    </div>
+  `,
+      );
+
+      document.getElementById("eSave").addEventListener("click", async () => {
+        const eMsg = document.getElementById("eMsg");
+        eMsg.textContent = "";
+        try {
+          await window.api.itemsUpdate({
+            id,
+            category: document.getElementById("eCategory").value,
+            unit: document.getElementById("eUnit").value,
+            description: document.getElementById("eDesc").value,
+            reorder_point: document.getElementById("eRP").value,
+            reorder_qty: document.getElementById("eRQ").value,
+            default_cost: document.getElementById("eCost").value,
+          });
+
+          window.dispatchEvent(new CustomEvent("data:changed"));
+          await load();
+          document.getElementById("itemsModal").classList.add("hidden");
+          setMsg("Saved.");
+        } catch (e) {
+          eMsg.textContent = e.message || "Failed to save.";
+          eMsg.classList.add("err");
+        }
+      });
+
       return;
     }
 
     if (locBtn) {
-      const sku = String(locBtn.dataset.locs || "");
-      setMsg(`Locations not wired yet (sku=${sku}).`);
-      return;
+      try {
+        const sku = String(locBtn.dataset.locs || "");
+        const rows = await window.api.reportsOnHand();
+        const hits = rows.filter((r) => String(r.sku) === sku);
+
+        const html = hits.length
+          ? `
+        <div class="hint">On-hand by Area for <span class="mono">${esc(sku)}</span></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:140px">Area</th>
+                <th>Name</th>
+                <th class="right" style="width:120px">On Hand</th>
+                <th style="width:180px">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${hits
+                .map(
+                  (h) => `
+                <tr>
+                  <td class="mono">${esc(h.location_code)}</td>
+                  <td>${esc(h.location_name || "")}</td>
+                  <td class="right mono">${num(h.on_hand)}</td>
+                  <td class="mono">${esc(h.updated_at || "")}</td>
+                </tr>
+              `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `
+          : `<div class="hint">No on-hand rows yet. This SKU has not been received into any Area.</div>`;
+
+        openModal(`Locations — ${sku}`, html);
+        return;
+      } catch (err) {
+        setMsg(`Locations modal error: ${err?.message || err}`, true);
+        return;
+      }
     }
   });
 
   function setMsg(text, isError = false) {
     msg.textContent = text || "";
     msg.classList.toggle("err", !!isError);
+  }
+
+  function ensureModal() {
+    let el = document.getElementById("itemsModal");
+    if (el) return el;
+
+    el = document.createElement("div");
+    el.id = "itemsModal";
+    el.className = "modal hidden";
+    el.innerHTML = `
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title" id="itemsModalTitle">Details</div>
+        <button class="btn" data-close>✕</button>
+      </div>
+      <div class="modal-body" id="itemsModalBody"></div>
+      <div class="modal-foot">
+        <button class="btn" data-close>Close</button>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(el);
+
+    el.addEventListener("click", (e) => {
+      if (e.target.closest("[data-close]")) el.classList.add("hidden");
+    });
+
+    return el;
+  }
+
+  function openModal(title, html) {
+    const m = ensureModal();
+    m.querySelector("#itemsModalTitle").textContent = title;
+    m.querySelector("#itemsModalBody").innerHTML = html;
+    m.classList.remove("hidden");
   }
 
   function toggleMenu(open) {
@@ -258,11 +403,11 @@ function rowHtml(i) {
       <td class="c mono">${num(i.reorder_qty)}</td>
       <td class="c mono">${money(i.default_cost)}</td>
       <td class="c">
-        <div class="row-actions">
-          <button class="btn" data-edit="${i.id}">Edit</button>
-          <button class="btn" data-locs="${esc(i.sku)}">Locations</button>
-        </div>
-      </td>
+  <div class="row-actions">
+    <button class="btn" data-edit="${i.id}">Edit</button>
+    <button class="btn" data-locs="${esc(i.sku)}">Locations</button>
+  </div>
+</td>
     </tr>
   `;
 }
