@@ -28,49 +28,78 @@ export async function mountItems() {
       openModal(
         `Edit — ${item.sku}`,
         `
-    <div class="form-grid">
-      <label class="field">
-        <div class="lbl">Category</div>
-        <input id="eCategory" class="input" value="${esc(item.category || "")}" />
-      </label>
+  <div class="edit-grid">
+    <label class="field">
+      <div class="lbl">Category</div>
+      <input id="eCategory" class="input" value="${esc(item.category || "")}" />
+    </label>
 
-      <label class="field">
-        <div class="lbl">Unit</div>
-        <input id="eUnit" class="input" value="${esc(item.unit || "")}" />
-      </label>
+    <label class="field">
+      <div class="lbl">Unit</div>
+      <input id="eUnit" class="input" value="${esc(item.unit || "")}" />
+    </label>
 
-      <label class="field span-2">
-        <div class="lbl">Description</div>
-        <input id="eDesc" class="input" value="${esc(item.description || "")}" />
-      </label>
+    <label class="field span-2">
+      <div class="lbl">Description</div>
+      <input id="eDesc" class="input" value="${esc(item.description || "")}" />
+    </label>
 
-      <label class="field">
-        <div class="lbl">Reorder Pt</div>
-        <input id="eRP" class="input" type="number" step="1" value="${num(item.reorder_point)}" />
-      </label>
+    <label class="field">
+      <div class="lbl">Reorder Pt</div>
+      <input id="eRP" class="input" type="number" step="1" value="${num(item.reorder_point)}" />
+    </label>
 
-      <label class="field">
-        <div class="lbl">Reorder Qty</div>
-        <input id="eRQ" class="input" type="number" step="1" value="${num(item.reorder_qty)}" />
-      </label>
+    <label class="field">
+      <div class="lbl">Reorder Qty</div>
+      <input id="eRQ" class="input" type="number" step="1" value="${num(item.reorder_qty)}" />
+    </label>
 
-      <label class="field">
-        <div class="lbl">Cost</div>
-        <input id="eCost" class="input" inputmode="decimal" value="${Number(item.default_cost ?? 0)}" />
-      </label>
+    <label class="field">
+      <div class="lbl">Cost</div>
+      <input id="eCost" class="input" inputmode="decimal" value="${Number(item.default_cost ?? 0).toFixed(2)}" />
+    </label>
 
-      <div class="row">
-        <button id="eSave" class="btn btn-primary">Save</button>
-        <button class="btn" data-close>Cancel</button>
-      </div>
-      <div class="msg" id="eMsg"></div>
-    </div>
-  `,
+    <div class="msg span-2" id="eMsg"></div>
+  </div>
+
+  <div class="modal-actions">
+    <button class="btn" data-close>Cancel</button>
+    <button id="eSave" class="btn btn-primary">Save</button>
+  </div>
+`,
       );
+
+      ["eCategory", "eUnit", "eDesc", "eRP", "eRQ", "eCost"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        el.addEventListener("focus", () => el.select());
+        el.addEventListener("mouseup", (e) => {
+          // keep the selection; don't place caret
+          e.preventDefault();
+        });
+      });
+
+      const eCost = document.getElementById("eCost");
+
+      // show $ on blur
+      eCost?.addEventListener("blur", () => {
+        const n = Number(String(eCost.value || "").replace(/[$,]/g, ""));
+        const v = Number.isFinite(n) ? n : 0;
+        eCost.value = `$${v.toFixed(2)}`;
+      });
+
+      // remove $ on focus so typing is clean
+      eCost?.addEventListener("focus", () => {
+        eCost.value = String(eCost.value || "").replace(/[$,]/g, "");
+        eCost.select();
+      });
 
       document.getElementById("eSave").addEventListener("click", async () => {
         const eMsg = document.getElementById("eMsg");
         eMsg.textContent = "";
+        const costEl = document.getElementById("eCost");
+        costEl?.dispatchEvent(new Event("blur"));
         try {
           await window.api.itemsUpdate({
             id,
@@ -79,7 +108,9 @@ export async function mountItems() {
             description: document.getElementById("eDesc").value,
             reorder_point: document.getElementById("eRP").value,
             reorder_qty: document.getElementById("eRQ").value,
-            default_cost: document.getElementById("eCost").value,
+            default_cost: String(
+              document.getElementById("eCost").value || "",
+            ).replace(/[$,]/g, ""),
           });
 
           window.dispatchEvent(new CustomEvent("data:changed"));

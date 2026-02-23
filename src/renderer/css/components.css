@@ -542,3 +542,65 @@ input[type="number"] {
     grid-column: auto;
   }
 }
+
+.modal.hidden{ display:none; }
+
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+}
+
+.modal-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+}
+
+.modal-card{
+  position: relative;
+  margin: 60px auto;
+  max-width: 860px;
+  padding: 14px;
+  background: rgba(15,22,32,.96);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.modal-head,
+.modal-foot{
+  display: flex;
+  gap: 10px;
+  padding: 6px 4px;
+}
+
+.modal-head{
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+}
+
+.modal-title{ font-weight: 700; }
+
+.modal-body{ padding: 6px 4px 10px; }
+
+.modal-foot{ justify-content: flex-end; }
+
+/* Edit modal form layout */
+.edit-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.edit-grid .span-2{ grid-column: 1 / -1; }
+
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
