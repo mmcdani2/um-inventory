@@ -1,14 +1,3 @@
-// TODO (Counts engine hardening):
-// - Decide if "All Areas" stays; if yes, fix header alignment + improve UX.
-// - Print count sheets:
-//   - per-location printable view (Category -> SKU order, blank Actual column)
-//   - include header (Location, date, user initials) + page numbers.
-// - Fast entry mode:
-//   - Enter on Actual field jumps to next row’s Actual
-//   - Arrow up/down also moves between Actual inputs
-//   - Optional: auto-focus first Actual after Load
-// - Ensure initial counts create inventory_balances rows (UPSERT) reliably.
-// - Add “show zeros” toggle in single-location mode.
 export async function mountCounts() {
   const msg = document.getElementById("kMsg");
   const hint = document.getElementById("kHint");
@@ -43,8 +32,7 @@ export async function mountCounts() {
       locs
         .map(
           (l) =>
-            `<option value="${l.id}">${escapeHtml(l.code)}${
-              l.name ? " — " + escapeHtml(l.name) : ""
+            `<option value="${l.id}">${escapeHtml(l.code)}${l.name ? " — " + escapeHtml(l.name) : ""
             }</option>`,
         )
         .join("");
@@ -325,6 +313,7 @@ export async function mountCounts() {
 function rowHtmlSingle(i, theo) {
   return `
     <tr data-sku="${escapeHtml(i.sku)}" data-theo="${theo}">
+      <td></td>
       <td>${escapeHtml(i.category)}</td>
       <td class="mono">${escapeHtml(i.sku)}</td>
       <td>${escapeHtml(i.description)}</td>
