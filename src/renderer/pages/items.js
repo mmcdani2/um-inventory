@@ -45,6 +45,11 @@ export async function mountItems() {
       <input id="eDesc" class="input" value="${esc(item.description || "")}" />
     </label>
 
+    <label class="field span-2">
+  <div class="lbl">Barcode</div>
+  <input id="eBarcode" class="input mono" value="${esc(item.barcode || "")}" />
+</label>
+
     <label class="field">
       <div class="lbl">Reorder Pt</div>
       <input id="eRP" class="input" type="number" step="1" value="${num(item.reorder_point)}" />
@@ -70,7 +75,7 @@ export async function mountItems() {
 `,
       );
 
-      ["eCategory", "eUnit", "eDesc", "eRP", "eRQ", "eCost"].forEach((id) => {
+      ["eCategory", "eUnit", "eDesc", "eBarcode", "eRP", "eRQ", "eCost"].forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
 
@@ -107,6 +112,7 @@ export async function mountItems() {
             category: document.getElementById("eCategory").value,
             unit: document.getElementById("eUnit").value,
             description: document.getElementById("eDesc").value,
+            barcode: document.getElementById("eBarcode").value,
             reorder_point: document.getElementById("eRP").value,
             reorder_qty: document.getElementById("eRQ").value,
             default_cost: String(
@@ -148,8 +154,8 @@ export async function mountItems() {
             </thead>
             <tbody>
               ${hits
-                .map(
-                  (h) => `
+            .map(
+              (h) => `
                 <tr>
                   <td class="mono">${esc(h.location_code)}</td>
                   <td>${esc(h.location_name || "")}</td>
@@ -157,8 +163,8 @@ export async function mountItems() {
                   <td class="mono">${esc(h.updated_at || "")}</td>
                 </tr>
               `,
-                )
-                .join("")}
+            )
+            .join("")}
             </tbody>
           </table>
         </div>
@@ -229,6 +235,7 @@ export async function mountItems() {
   // Items search (client-side filter)
   function wireItemsSearch() {
     const input = document.getElementById("itemsSearch");
+    input.addEventListener("focus", () => input.select());
     const clear = document.getElementById("itemsSearchClear");
     if (!input || !clear || !tbody) return;
 
@@ -236,7 +243,7 @@ export async function mountItems() {
       const q = input.value.trim().toLowerCase();
       const rows = tbody.querySelectorAll("tr");
       rows.forEach((tr) => {
-        const hay = (tr.innerText || "").toLowerCase();
+        const hay = ((tr.innerText || "") + " " + (tr.dataset.barcode || "")).toLowerCase();
         tr.style.display = !q || hay.includes(q) ? "" : "none";
       });
     };
@@ -460,13 +467,17 @@ export async function mountItems() {
 
   wireItemsSearch();
   await load();
+  document.getElementById("itemsSearch")?.focus();
 }
 
 function rowHtml(i) {
   return `
-    <tr data-id="${i.id}" data-sku="${esc(i.sku)}">
+    <tr data-id="${i.id}" data-sku="${esc(i.sku)}" data-barcode="${esc(i.barcode || "")}">
       <td>${esc(i.category)}</td>
-      <td class="mono">${esc(i.sku)}</td>
+      <td class="mono">
+  ${esc(i.sku)}
+  ${i.barcode ? `<div style="margin-top:4px; font-size:11px; color: var(--muted);">⌁ ${esc(i.barcode)}</div>` : ""}
+</td>
       <td title="${esc(i.description)}">${esc(i.description)}</td>
       <td class="c">${esc(i.unit)}</td>
       <td class="c mono">${num(i.on_hand_total)}</td>
@@ -486,7 +497,14 @@ function rowHtml(i) {
 function newRowHtml() {
   return `
     <td><input class="input input-mini" name="category" placeholder="Category" /></td>
-    <td><input class="input input-mini mono" name="sku" placeholder="SKU*" /></td>
+
+    <td>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <input class="input input-mini mono" name="sku" placeholder="SKU*" />
+        <input class="input input-mini mono" name="barcode" placeholder="Barcode (optional)" />
+      </div>
+    </td>
+
     <td><input class="input input-mini" name="description" placeholder="Description*" /></td>
 
     <td class="c"><input class="input input-mini ctext" name="unit" value="EA" /></td>
@@ -510,6 +528,7 @@ function readRow(tr) {
   const v = (name) => tr.querySelector(`[name='${name}']`)?.value ?? "";
   return {
     sku: v("sku"),
+    barcode: v("barcode"),
     description: v("description"),
     category: v("category"),
     unit: v("unit") || "EA",
