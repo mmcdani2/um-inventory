@@ -40,7 +40,6 @@ export async function mountCounts() {
     const locs = await window.api.locationsList();
     kLoc.innerHTML =
       `<option value="">Select...</option>` +
-      `<option value="__ALL__">All Areas</option>` +
       locs
         .map(
           (l) =>
