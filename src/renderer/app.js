@@ -8,12 +8,36 @@ function setActiveNav(routeId) {
   });
 }
 
+function isAdminUnlocked() {
+  return sessionStorage.getItem("adminUnlocked") === "1";
+}
+
+function unlockAdminPrompt() {
+  const pw = prompt("Admin password:");
+  if (pw !== "umadmin") return false;
+  sessionStorage.setItem("adminUnlocked", "1");
+  return true;
+}
+
 async function loadView(routeId) {
   const route = getRoute(routeId);
+
+  // Admin gate (session only)
+  if (route.id === "admin" && !isAdminUnlocked()) {
+    if (!unlockAdminPrompt()) {
+      location.hash = "#home";
+      return;
+    }
+    // re-render nav so Admin link becomes visible after unlock
+    renderNav();
+  }
+
   setActiveNav(route.id);
+
   const res = await fetch(route.file);
   const html = await res.text();
   $("view").innerHTML = html;
+
   if (route.id === "items") {
     const mod = await import("./pages/items.js");
     await mod.mountItems();
@@ -44,6 +68,11 @@ async function loadView(routeId) {
     await mod.mountCounts();
   }
 
+  if (route.id === "admin") {
+    const mod = await import("./pages/admin.js");
+    await mod.mountAdmin();
+  }
+
   const url = new URL(window.location.href);
   url.hash = route.id;
   history.replaceState(null, "", url);
@@ -51,7 +80,10 @@ async function loadView(routeId) {
 
 function renderNav() {
   const nav = $("nav");
-  nav.innerHTML = routes
+
+  const visibleRoutes = routes;
+
+  nav.innerHTML = visibleRoutes
     .map((r) => `<a href="#${r.id}" data-route="${r.id}">${r.label}</a>`)
     .join("");
 
@@ -60,7 +92,7 @@ function renderNav() {
     if (!a) return;
     e.preventDefault();
     const routeId = a.dataset.route || "home";
-    setActiveNav(routeId); // optimistic (avoids any race where Home doesn't highlight)
+    setActiveNav(routeId); // optimistic
     await loadView(routeId);
   });
 }
@@ -68,9 +100,7 @@ function renderNav() {
 async function refreshDbInfo() {
   const info = await window.api.dbGetInfo();
   $("dbPath").textContent = info.dbPath;
-  $("schemaVersion").textContent = info.schemaVersion
-    ? String(info.schemaVersion)
-    : "—";
+  $("schemaVersion").textContent = info.schemaVersion ? String(info.schemaVersion) : "—";
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -82,6 +112,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   const initial = (location.hash || "#home").replace("#", "");
   await loadView(initial);
+
   const appEl = document.querySelector(".app");
   const btnSidebarToggle = $("btnSidebarToggle");
   const scrim = $("drawerScrim");

@@ -1,4 +1,4 @@
-﻿export async function mountHome() {
+﻿﻿export async function mountHome() {
   const skus = document.getElementById("kpiSkus");
   const locs = document.getElementById("kpiLocs");
   const reorder = document.getElementById("kpiReorder");
@@ -10,216 +10,228 @@
   const lCode = document.getElementById("lCode");
   const lName = document.getElementById("lName");
   const lSave = document.getElementById("lSave");
-  const lCancel = document.getElementById("lCancel");
+  const lReset = document.getElementById("lReset");
 
-  const locTbody = document.querySelector("#locTable tbody");
+  const iMsg = document.getElementById("iMsg");
+  const iSku = document.getElementById("iSku");
+  const iDesc = document.getElementById("iDesc");
+  const iCat = document.getElementById("iCat");
+  const iUnit = document.getElementById("iUnit");
+  const iPar = document.getElementById("iPar");
+  const iRestock = document.getElementById("iRestock");
+  const iCost = document.getElementById("iCost");
+  const iSave = document.getElementById("iSave");
+  const iReset = document.getElementById("iReset");
 
-  // Optional (only if present in HTML)
-  const locHint = document.getElementById("locHint");
+  const qMsg = document.getElementById("qMsg");
+  const qLoc = document.getElementById("qLoc");
+  const qItem = document.getElementById("qItem");
+  const qQty = document.getElementById("qQty");
+  const qCost = document.getElementById("qCost");
+  const qReceive = document.getElementById("qReceive");
+  const qCheckout = document.getElementById("qCheckout");
+  const qReset = document.getElementById("qReset");
 
-  // Guard ONLY required elements
-  const missing = [];
-  if (!skus) missing.push("kpiSkus");
-  if (!locs) missing.push("kpiLocs");
-  if (!reorder) missing.push("kpiReorder");
-  if (!tx7d) missing.push("kpiTx7d");
-  if (!homeHint) missing.push("homeHint");
-  if (!lMsg) missing.push("lMsg");
-  if (!lCode) missing.push("lCode");
-  if (!lName) missing.push("lName");
-  if (!lSave) missing.push("lSave");
-  if (!lCancel) missing.push("lCancel");
-  if (!locTbody) missing.push("#locTable tbody");
-  if (missing.length) throw new Error(`Home page missing: ${missing.join(", ")}`);
+  let allLocs = [];
+  let allItems = [];
 
-  let editingId = null;
-  let cachedLocations = [];
+  const setMsg = (el, text, isErr = false) => {
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("err", !!isErr);
+  };
 
-  function setLMsg(t, err = false) {
-    lMsg.textContent = t || "";
-    lMsg.classList.toggle("err", !!err);
-  }
+  const clearForm = () => {
+    if (lCode) lCode.value = "";
+    if (lName) lName.value = "";
+    setMsg(lMsg, "");
 
-  const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    })[c]);
+    if (iSku) iSku.value = "";
+    if (iDesc) iDesc.value = "";
+    if (iCat) iCat.value = "";
+    if (iUnit) iUnit.value = "EA";
+    if (iPar) iPar.value = "0";
+    if (iRestock) iRestock.value = "0";
+    if (iCost) iCost.value = "0.00";
+    setMsg(iMsg, "");
 
-  function setModeEdit(on) {
-    lSave.textContent = on ? "Save" : "Add";
-    lCancel.disabled = !on;
-  }
+    if (qLoc) qLoc.value = "";
+    if (qItem) qItem.value = "";
+    if (qQty) qQty.value = "1";
+    if (qCost) qCost.value = "0.00";
+    setMsg(qMsg, "");
+  };
 
-  function clearForm() {
-    editingId = null;
-    lCode.value = "";
-    lName.value = "";
-    setModeEdit(false);
-    setLMsg("");
-    lCode.focus();
-  }
+  const fmtMoney = (n) => {
+    const x = Number(n ?? 0);
+    if (!Number.isFinite(x)) return "0.00";
+    return x.toFixed(2);
+  };
 
-  async function load() {
-    const [s, locList] = await Promise.all([
-      window.api.homeStats(),
-      window.api.locationsList(),
-    ]);
-
-    cachedLocations = locList;
-
-    skus.textContent = String(s.total_skus ?? 0);
-    locs.textContent = String(s.total_locations ?? 0);
-    reorder.textContent = String(s.below_reorder ?? 0);
-    tx7d.textContent = String(s.tx_7d ?? 0);
-
-    homeHint.textContent =
-      (s.total_locations ?? 0) === 0
-        ? "No locations yet. Add at least SHOP-A1 and TRUCK-01."
-        : "";
-
-    locTbody.innerHTML = locList
-      .map(
-        (l) => `
-          <tr data-id="${l.id}">
-            <td class="mono">${esc(l.code)}</td>
-            <td>${esc(l.name)}</td>
-            <td class="mono">${esc(l.created_at)}</td>
-          </tr>
-        `,
-      )
-      .join("");
-
-    if (locHint) {
-      locHint.textContent = locList.length
-        ? `${locList.length} location(s)`
-        : "No locations yet.";
-    }
-
-    // click row to edit
-    locTbody.querySelectorAll("tr[data-id]").forEach((tr) => {
-      tr.addEventListener("click", () => {
-        const id = Number(tr.dataset.id);
-        const loc = cachedLocations.find((x) => Number(x.id) === id);
-        if (!loc) return;
-
-        editingId = id;
-        lCode.value = loc.code || "";
-        lName.value = loc.name || "";
-        setModeEdit(true);
-        setLMsg(`Editing: ${loc.code}`);
-        lCode.focus();
-      });
-    });
-  }
-
-  async function save() {
-    setLMsg("");
-    lSave.disabled = true;
-
+  const load = async () => {
     try {
-      if (!editingId) {
-        await window.api.locationsCreate({ code: lCode.value, name: lName.value });
-        setLMsg("Added.");
-      } else {
-        await window.api.locationsUpdate({
-          id: editingId,
-          code: lCode.value,
-          name: lName.value,
-        });
-        setLMsg("Saved.");
-      }
-
-      window.dispatchEvent(new CustomEvent("data:changed"));
-      await load();
-      clearForm();
-    } catch (e) {
-      setLMsg(e.message || "Failed.", true);
-    } finally {
-      lSave.disabled = false;
-    }
-  }
-
-  lSave.addEventListener("click", save);
-  lCancel.addEventListener("click", clearForm);
-  lName.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") save();
-  });
-
-  document
-    .getElementById("btnExportInventoryCsv")
-    ?.addEventListener("click", async () => {
-      const [items, locs, onhandRows] = await Promise.all([
-        window.api.itemsList(),
+      const [kpi, locsList, itemsList] = await Promise.all([
+        window.api.homeKpis(),
         window.api.locationsList(),
-        window.api.reportsOnHand(),
+        window.api.itemsList(),
       ]);
 
-      const asOf = new Date().toISOString();
+      if (skus) skus.textContent = String(kpi?.skus ?? 0);
+      if (locs) locs.textContent = String(kpi?.locations ?? 0);
+      if (reorder) reorder.textContent = String(kpi?.reorder ?? 0);
+      if (tx7d) tx7d.textContent = String(kpi?.tx7d ?? 0);
 
-      const locCodes = locs
-        .map((l) => String(l.code || "").trim())
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b));
-
-      // sku -> (locCode -> qty)
-      const bySku = new Map();
-      for (const r of onhandRows) {
-        const sku = String(r.sku ?? "").trim();
-        const loc = String(r.location_code ?? "").trim();
-        const qty = Number(r.on_hand ?? 0);
-        if (!sku || !loc) continue;
-
-        if (!bySku.has(sku)) bySku.set(sku, new Map());
-        const m = bySku.get(sku);
-        m.set(loc, (m.get(loc) ?? 0) + qty);
+      if (homeHint) {
+        const now = new Date().toLocaleString();
+        homeHint.textContent = `Updated ${now}`;
       }
 
-      const headers = [
-        { key: "as_of", label: "As Of" },
-        { key: "category", label: "Category" },
-        { key: "sku", label: "SKU / Part #" },
-        { key: "description", label: "Description" },
-        { key: "unit", label: "Unit" },
-        { key: "reorder_point", label: "Reorder Pt" },
-        { key: "reorder_qty", label: "Reorder Qty" },
-        { key: "default_cost", label: "Cost" },
-        { key: "on_hand_total", label: "On Hand Total" },
-        ...locCodes.map((code) => ({ key: `loc_${code}`, label: code })),
-      ];
+      allLocs = Array.isArray(locsList) ? locsList : [];
+      allItems = Array.isArray(itemsList) ? itemsList : [];
 
-      const rows = items.map((i) => {
-        const sku = String(i.sku ?? "").trim();
-        const locMap = bySku.get(sku) || new Map();
+      if (qLoc) {
+        qLoc.innerHTML =
+          `<option value="">Select...</option>` +
+          allLocs
+            .map(
+              (l) =>
+                `<option value="${l.id}">${escapeHtml(l.code)}${
+                  l.name ? " — " + escapeHtml(l.name) : ""
+                }</option>`,
+            )
+            .join("");
+      }
 
-        const row = {
-          as_of: asOf,
-          category: i.category ?? "",
-          sku,
-          description: i.description ?? "",
-          unit: i.unit ?? "",
-          reorder_point: Number(i.reorder_point ?? 0),
-          reorder_qty: Number(i.reorder_qty ?? 0),
-          default_cost: Number(i.default_cost ?? 0),
-          on_hand_total: Number(i.on_hand_total ?? 0),
-        };
+      if (qItem) {
+        qItem.innerHTML =
+          `<option value="">Select...</option>` +
+          allItems
+            .map(
+              (i) =>
+                `<option value="${i.id}">${escapeHtml(i.sku)} — ${escapeHtml(
+                  i.description,
+                )}</option>`,
+            )
+            .join("");
+      }
+    } catch (e) {
+      setMsg(homeHint, e?.message || "Failed to load Home.", true);
+    }
+  };
 
-        for (const code of locCodes)
-          row[`loc_${code}`] = Number(locMap.get(code) ?? 0);
-        return row;
+  // Create Location
+  lSave?.addEventListener("click", async () => {
+    setMsg(lMsg, "");
+    const code = (lCode?.value || "").trim();
+    const name = (lName?.value || "").trim();
+    if (!code) return setMsg(lMsg, "Location code is required.", true);
+
+    try {
+      await window.api.locationsCreate({ code, name });
+      setMsg(lMsg, "Location added.");
+      window.dispatchEvent(new CustomEvent("data:changed"));
+      clearForm();
+      await load();
+    } catch (e) {
+      setMsg(lMsg, e?.message || "Failed to add location.", true);
+    }
+  });
+
+  lReset?.addEventListener("click", clearForm);
+
+  // Create Item
+  iSave?.addEventListener("click", async () => {
+    setMsg(iMsg, "");
+    const sku = (iSku?.value || "").trim();
+    const description = (iDesc?.value || "").trim();
+    const category = (iCat?.value || "").trim();
+    const unit = (iUnit?.value || "EA").trim();
+
+    const reorder_point = String(Number(iPar?.value ?? 0) || 0);
+    const reorder_qty = String(Number(iRestock?.value ?? 0) || 0);
+    const default_cost = String(Number(iCost?.value ?? 0) || 0);
+
+    if (!sku) return setMsg(iMsg, "SKU is required.", true);
+    if (!description) return setMsg(iMsg, "Description is required.", true);
+
+    try {
+      await window.api.itemsCreate({
+        sku,
+        description,
+        category,
+        unit,
+        reorder_point,
+        reorder_qty,
+        default_cost,
       });
+      setMsg(iMsg, "Item added.");
+      window.dispatchEvent(new CustomEvent("data:changed"));
+      clearForm();
+      await load();
+    } catch (e) {
+      setMsg(iMsg, e?.message || "Failed to add item.", true);
+    }
+  });
 
-      // Uses your existing CSV utils used on Items page
-      const { toCsv, downloadCsv } = await import("../utils/csv.js");
-      const csv = toCsv(rows, headers);
-      const stamp = asOf.replace(/[:.]/g, "-");
-      downloadCsv(`inventory_snapshot_${stamp}.csv`, csv);
+  iReset?.addEventListener("click", clearForm);
+
+  // Quick Receive / Checkout
+  const quickTx = async (type) => {
+    setMsg(qMsg, "");
+    const location_id = Number(qLoc?.value || 0);
+    const item_id = Number(qItem?.value || 0);
+    const qty = Number(qQty?.value || 0);
+    const unit_cost = Number(String(qCost?.value || "0").replace(/[$,]/g, "") || 0);
+
+    if (!location_id) return setMsg(qMsg, "Pick a location.", true);
+    if (!item_id) return setMsg(qMsg, "Pick an item.", true);
+    if (!Number.isFinite(qty) || qty <= 0) return setMsg(qMsg, "Qty must be > 0.", true);
+
+    try {
+      if (type === "receive") {
+        await window.api.receiveCreate({
+          location_id,
+          lines: [{ item_id, qty, unit_cost: Number.isFinite(unit_cost) ? unit_cost : 0 }],
+        });
+      } else {
+        await window.api.checkoutCreate({
+          location_id,
+          lines: [{ item_id, qty }],
+        });
+      }
+
+      setMsg(qMsg, type === "receive" ? "Received." : "Checked out.");
+      window.dispatchEvent(new CustomEvent("data:changed"));
+      clearForm();
+      await load();
+    } catch (e) {
+      setMsg(qMsg, e?.message || "Transaction failed.", true);
+    }
+  };
+
+  qReceive?.addEventListener("click", () => quickTx("receive"));
+  qCheckout?.addEventListener("click", () => quickTx("checkout"));
+  qReset?.addEventListener("click", clearForm);
+
+  // Select-all behavior for quick inputs
+  [lCode, lName, iSku, iDesc, iCat, iUnit, iPar, iRestock, iCost, qQty, qCost].forEach((el) => {
+    if (!el) return;
+    el.addEventListener("focus", () => {
+      try {
+        el.select();
+      } catch {}
     });
+  });
 
-  // Quick Actions: router uses #routeId (no slash)
+  // Normalize cost field formatting
+  qCost?.addEventListener("blur", () => {
+    qCost.value = fmtMoney(String(qCost.value || "").replace(/[$,]/g, ""));
+  });
+  iCost?.addEventListener("blur", () => {
+    iCost.value = fmtMoney(String(iCost.value || "").replace(/[$,]/g, ""));
+  });
+
+  // Quick nav buttons (no slash)
   document.querySelectorAll("[data-go]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const go = btn.dataset.go;
@@ -228,16 +240,12 @@
     });
   });
 
-  // DB reset button exists only on Home
-  document.getElementById("btnDbReset")?.addEventListener("click", async () => {
-    if (!confirm("Wipe ALL data (items, locations, balances, transactions)? This cannot be undone.")) return;
-    await window.api.dbReset();
-    window.dispatchEvent(new CustomEvent("data:changed"));
-    alert("Database wiped.");
-  });
-
   window.addEventListener("data:changed", load);
 
   await load();
   clearForm();
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
