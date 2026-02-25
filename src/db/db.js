@@ -249,6 +249,57 @@ function createLocation(db, loc) {
   }
 }
 
+function importLocationsCsv(db, payload) {
+  const csvText = String(payload?.csvText || "").trim();
+  if (!csvText) throw new Error("CSV is empty.");
+
+  const lines = csvText.split(/\r?\n/).filter((x) => x.trim().length);
+  if (lines.length < 2)
+    throw new Error("CSV must include a header row and at least 1 data row.");
+
+  // Simple CSV parse (works for your file: no quoted commas)
+  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const idxCode =
+    header.indexOf("location_code") !== -1
+      ? header.indexOf("location_code")
+      : header.indexOf("code");
+  const idxName =
+    header.indexOf("description") !== -1
+      ? header.indexOf("description")
+      : header.indexOf("name");
+
+  if (idxCode === -1)
+    throw new Error("CSV must include location_code (or code) column.");
+  if (idxName === -1)
+    throw new Error("CSV must include description (or name) column.");
+
+  const stmt = db.prepare(
+    `INSERT OR IGNORE INTO locations (code, name) VALUES (?, ?)`,
+  );
+
+  let inserted = 0;
+  let skipped = 0;
+
+  const tx = db.transaction(() => {
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(",");
+      const code = String(row[idxCode] || "")
+        .trim()
+        .toUpperCase();
+      const name = String(row[idxName] || "").trim();
+
+      if (!code) continue;
+
+      const res = stmt.run(code, name);
+      if (res.changes === 1) inserted++;
+      else skipped++;
+    }
+  });
+
+  tx();
+  return { ok: true, inserted, skipped, total: inserted + skipped };
+}
+
 function importItemsCsv(db, payload) {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   if (items.length === 0) return { imported: 0 };
@@ -824,4 +875,5 @@ module.exports = {
   findItemByBarcode,
   attachBarcodeToItem,
   deleteLocation,
+  importLocationsCsv,
 };

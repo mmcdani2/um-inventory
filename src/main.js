@@ -187,6 +187,10 @@ app.whenReady().then(() => {
     return { ok: entered === expected };
   });
 
+  ipcMain.handle("locations:importCsv", (_evt, payload) =>
+    dbLayer.importLocationsCsv(db, payload),
+  );
+
   createWindow();
 
   app.on("activate", () => {

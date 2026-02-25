@@ -90,4 +90,6 @@ contextBridge.exposeInMainWorld("api", {
   locationsDelete: (locationId) =>
     ipcRenderer.invoke("locations:delete", locationId),
   adminCheck: (password) => ipcRenderer.invoke("admin:check", password),
+  locationsImportCsv: (payload) =>
+    ipcRenderer.invoke("locations:importCsv", payload),
 });

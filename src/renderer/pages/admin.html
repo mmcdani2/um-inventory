@@ -7,15 +7,32 @@
   </div>
 
   <div class="card-block">
-    <div class="card-title">Data Tools</div>
-
     <div class="quick-grid" style="gap: 10px">
       <div>
         <div class="lbl">Import Locations CSV</div>
-        <input id="locCsvFile" type="file" accept=".csv" />
-        <button id="btnImportLocCsv" class="btn btn-primary">
-          Import Locations
-        </button>
+
+        <!-- hide native input, use styled button -->
+        <input
+          id="locCsvFile"
+          type="file"
+          accept=".csv"
+          style="display: none"
+        />
+
+        <div
+          style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap"
+        >
+          <label for="locCsvFile" class="btn">Choose CSV</label>
+          <div id="locCsvName" class="msg" style="margin: 0; opacity: 0.9">
+            No file selected
+          </div>
+        </div>
+
+        <div style="margin-top: 10px">
+          <button id="btnImportLocCsv" class="btn btn-primary" disabled>
+            Import Locations
+          </button>
+        </div>
       </div>
 
       <div>
