@@ -7,11 +7,10 @@
   </div>
 
   <div class="card-block">
-    <div class="quick-grid" style="gap: 10px">
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <!-- Locations -->
       <div>
-        <div class="lbl">Import Locations CSV</div>
-
-        <!-- hide native input, use styled button -->
+        <div class="lbl">Locations CSV</div>
         <input
           id="locCsvFile"
           type="file"
@@ -20,63 +19,79 @@
         />
 
         <div
-          style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap"
+          style="
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+          "
         >
           <label for="locCsvFile" class="btn">Choose CSV</label>
-          <div id="locCsvName" class="msg" style="margin: 0; opacity: 0.9">
+          <div
+            id="locCsvName"
+            class="msg"
+            style="margin: 0; opacity: 0.9; min-width: 160px"
+          >
             No file selected
           </div>
-        </div>
-
-        <div style="margin-top: 10px">
           <button id="btnImportLocCsv" class="btn btn-primary" disabled>
-            Import Locations
+            Import
           </button>
         </div>
       </div>
 
+      <!-- Receives -->
       <div>
-        <div class="lbl">Bulk Receive Seeder</div>
-        <div class="hint">Creates receive batches to populate balances.</div>
+        <div class="lbl">Bulk Receives CSV</div>
+        <input
+          id="recvCsvFile"
+          type="file"
+          accept=".csv"
+          style="display: none"
+        />
 
-        <label class="field">
-          <div class="lbl">Batches</div>
-          <input
-            id="seedBatches"
-            class="input input-mini"
-            type="number"
-            min="1"
-            value="10"
-          />
-        </label>
+        <div
+          style="
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 8px;
+          "
+        >
+          <label for="recvCsvFile" class="btn">Choose CSV</label>
+          <div
+            id="recvCsvName"
+            class="msg"
+            style="margin: 0; opacity: 0.9; min-width: 160px"
+          >
+            No file selected
+          </div>
 
-        <label class="field">
-          <div class="lbl">Lines per batch</div>
-          <input
-            id="seedLines"
-            class="input input-mini"
-            type="number"
-            min="1"
-            value="8"
-          />
-        </label>
+          <button id="btnImportRecvCsv" class="btn btn-primary" disabled>
+            Import
+          </button>
 
-        <label class="field">
-          <div class="lbl">Max qty per line</div>
-          <input
-            id="seedMaxQty"
-            class="input input-mini"
-            type="number"
-            min="1"
-            value="5"
-          />
-        </label>
-
-        <button id="btnSeedReceive" class="btn">Seed Receives</button>
+          <label
+            class="msg"
+            style="
+              margin: 0;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              user-select: none;
+              opacity: 0.9;
+            "
+          >
+            <input id="recvAutoCreate" type="checkbox" checked />
+            Auto-create missing
+          </label>
+        </div>
       </div>
-    </div>
 
-    <div id="adminToolsMsg" class="msg"></div>
+      <div id="adminToolsMsg" class="msg"></div>
+    </div>
   </div>
 
   <div class="card-block">
