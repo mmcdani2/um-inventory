@@ -1,5 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+
+// Put Chromium cache somewhere writable (prevents 0x5 cache errors on Windows)
+app.commandLine.appendSwitch(
+  "disk-cache-dir",
+  path.join(app.getPath("userData"), "Cache"),
+);
+app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
 const fs = require("fs");
 
 const Database = require("better-sqlite3");
@@ -129,7 +136,37 @@ app.whenReady().then(() => {
     return dbLayer.updateLocation(db, loc);
   });
 
-  ipcMain.handle("db:reset", () => dbLayer.resetDb(db));
+  ipcMain.handle("locations:delete", (_evt, locationId) => {
+    return dbLayer.deleteLocation(db, locationId);
+  });
+
+  ipcMain.handle("db:reset", async () => {
+    try {
+      // Close DB so the file isn't locked (WAL mode)
+      try {
+        db?.close?.();
+      } catch {}
+
+      const dbPath = getDbPath();
+      const wal = `${dbPath}-wal`;
+      const shm = `${dbPath}-shm`;
+
+      // Delete main + WAL files if present
+      for (const p of [dbPath, wal, shm]) {
+        try {
+          fs.unlinkSync(p);
+        } catch {}
+      }
+
+      // Relaunch clean
+      app.relaunch();
+      app.exit(0);
+
+      return { ok: true };
+    } catch (e) {
+      throw new Error(e?.message || "DB reset failed.");
+    }
+  });
 
   ipcMain.handle("receive:submitBatch", async (_evt, payload) => {
     return dbLayer.receiveBatch(db, payload);
@@ -142,6 +179,12 @@ app.whenReady().then(() => {
   ipcMain.handle("items:attachBarcode", (_evt, payload) => {
     // payload: { item_id, barcode, source? }
     return dbLayer.attachBarcodeToItem(db, payload);
+  });
+
+  ipcMain.handle("admin:check", (_evt, password) => {
+    const entered = String(password || "");
+    const expected = process.env.UM_ADMIN_PASSWORD || "umadmin"; // TODO: set env later
+    return { ok: entered === expected };
   });
 
   createWindow();

@@ -7,9 +7,67 @@
   </div>
 
   <div class="card-block">
+    <div class="card-title">Data Tools</div>
+
+    <div class="quick-grid" style="gap: 10px">
+      <div>
+        <div class="lbl">Import Locations CSV</div>
+        <input id="locCsvFile" type="file" accept=".csv" />
+        <button id="btnImportLocCsv" class="btn btn-primary">
+          Import Locations
+        </button>
+      </div>
+
+      <div>
+        <div class="lbl">Bulk Receive Seeder</div>
+        <div class="hint">Creates receive batches to populate balances.</div>
+
+        <label class="field">
+          <div class="lbl">Batches</div>
+          <input
+            id="seedBatches"
+            class="input input-mini"
+            type="number"
+            min="1"
+            value="10"
+          />
+        </label>
+
+        <label class="field">
+          <div class="lbl">Lines per batch</div>
+          <input
+            id="seedLines"
+            class="input input-mini"
+            type="number"
+            min="1"
+            value="8"
+          />
+        </label>
+
+        <label class="field">
+          <div class="lbl">Max qty per line</div>
+          <input
+            id="seedMaxQty"
+            class="input input-mini"
+            type="number"
+            min="1"
+            value="5"
+          />
+        </label>
+
+        <button id="btnSeedReceive" class="btn">Seed Receives</button>
+      </div>
+    </div>
+
+    <div id="adminToolsMsg" class="msg"></div>
+  </div>
+
+  <div class="card-block">
     <div class="card-title">Danger Zone</div>
     <div class="quick-grid">
-      <button id="btnResetDb" class="btn btn-danger">Reset Database (wipe data)</button>
+      <button id="btnResetDb" class="btn btn-danger">
+        Reset Database (wipe data)
+      </button>
     </div>
     <div id="adminMsg" class="msg"></div>
   </div>

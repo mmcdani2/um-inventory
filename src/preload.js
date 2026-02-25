@@ -70,7 +70,8 @@ contextBridge.exposeInMainWorld("api", {
   receiveSubmit: (payload) => ipcRenderer.invoke("receive:submit", payload),
   reportsOnHand: () => ipcRenderer.invoke("reports:onhand"),
   checkoutSubmit: (payload) => ipcRenderer.invoke("checkout:submit", payload),
-  countsGetTheoretical: (payload) => ipcRenderer.invoke("counts:getTheoretical", payload),
+  countsGetTheoretical: (payload) =>
+    ipcRenderer.invoke("counts:getTheoretical", payload),
   countsSubmit: (payload) => ipcRenderer.invoke("counts:submit", payload),
   reportsSuggestedOrders: () => ipcRenderer.invoke("reports:suggestedOrders"),
   itemsUpdate: (item) => ipcRenderer.invoke("items:update", item),
@@ -79,8 +80,14 @@ contextBridge.exposeInMainWorld("api", {
   onWinMaximize: (cb) => ipcRenderer.on("win:maximize", cb),
   onWinUnmaximize: (cb) => ipcRenderer.on("win:unmaximize", cb),
   dbReset: () => ipcRenderer.invoke("db:reset"),
-  receiveSubmitBatch: (payload) => ipcRenderer.invoke("receive:submitBatch", payload),
+  receiveSubmitBatch: (payload) =>
+    ipcRenderer.invoke("receive:submitBatch", payload),
   barcodeLookup,
-  itemsFindByBarcode: (barcode) => ipcRenderer.invoke("items:findByBarcode", barcode),
-  itemsAttachBarcode: (itemId, barcode) => ipcRenderer.invoke("items:attachBarcode", itemId, barcode),
+  itemsFindByBarcode: (barcode) =>
+    ipcRenderer.invoke("items:findByBarcode", barcode),
+  itemsAttachBarcode: (payload) =>
+    ipcRenderer.invoke("items:attachBarcode", payload),
+  locationsDelete: (locationId) =>
+    ipcRenderer.invoke("locations:delete", locationId),
+  adminCheck: (password) => ipcRenderer.invoke("admin:check", password),
 });

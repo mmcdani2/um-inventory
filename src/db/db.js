@@ -22,32 +22,71 @@ function ensureSchema(db, schemaFilePath) {
     );
   `);
 
-  const v = db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value;
+  const v = db
+    .prepare("SELECT value FROM app_meta WHERE key=?")
+    .get("schema_version")?.value;
 
   if (!v) {
     const schemaSql = fs.readFileSync(schemaFilePath, "utf8");
     db.exec(schemaSql);
-    db.prepare("INSERT INTO app_meta(key,value) VALUES(?,?)").run("schema_version", "1");
+    db.prepare("INSERT INTO app_meta(key,value) VALUES(?,?)").run(
+      "schema_version",
+      "1",
+    );
   }
 
   // Migration v1 -> v2: enforce unique barcode (allow NULL/blank)
-  const cur = Number(db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 1);
+  const cur = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 1,
+  );
   if (cur < 2) {
     db.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_items_barcode
     ON items(barcode)
     WHERE barcode IS NOT NULL AND TRIM(barcode) <> '';
   `);
-    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("2", "schema_version");
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "2",
+      "schema_version",
+    );
+  }
+
+  // Migration v2 -> v3: add item_barcodes alias table
+  const cur2 = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 2,
+  );
+
+  if (cur2 < 3) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS item_barcodes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        barcode TEXT NOT NULL UNIQUE,
+        source TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_item_barcodes_item_id ON item_barcodes(item_id);
+    `);
+
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "3",
+      "schema_version",
+    );
   }
 }
 
 function getMeta(db) {
-  const schemaVersion = db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value;
+  const schemaVersion = db
+    .prepare("SELECT value FROM app_meta WHERE key=?")
+    .get("schema_version")?.value;
   return { schemaVersion };
 }
 
-// READ-ONLY queries 
+// READ-ONLY queries
 function listItems(db) {
   return db
     .prepare(
@@ -96,17 +135,19 @@ function findItemByBarcode(db, barcodeRaw) {
   if (hit) return hit;
 
   // 2) Legacy fallback: items.barcode (until we fully migrate)
-  return db
-    .prepare(`SELECT * FROM items WHERE barcode = ? LIMIT 1`)
-    .get(barcode) || null;
+  return (
+    db.prepare(`SELECT * FROM items WHERE barcode = ? LIMIT 1`).get(barcode) ||
+    null
+  );
 }
 
-function attachBarcodeToItem(db, { item_id, barcode, source = "" }) {
+function attachBarcodeToItem(db, { item_id, barcode, source = "house" }) {
   const itemId = Number(item_id);
   const bc = String(barcode || "").trim();
   const src = String(source || "").trim();
 
-  if (!Number.isFinite(itemId) || itemId <= 0) throw new Error("Invalid item_id.");
+  if (!Number.isFinite(itemId) || itemId <= 0)
+    throw new Error("Invalid item_id.");
   if (!bc) throw new Error("Barcode is required.");
 
   try {
@@ -127,11 +168,15 @@ function attachBarcodeToItem(db, { item_id, barcode, source = "" }) {
 }
 
 function listLocations(db) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT id, code, name, created_at
     FROM locations
     ORDER BY code
-  `).all();
+  `,
+    )
+    .all();
 }
 
 function createItem(db, item) {
@@ -166,8 +211,10 @@ function createItem(db, item) {
   } catch (e) {
     if (String(e.message).includes("UNIQUE")) {
       const msg = String(e.message);
-      if (msg.includes("items.sku")) throw new Error("SKU/Part # already exists.");
-      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode")) throw new Error("Barcode already exists.");
+      if (msg.includes("items.sku"))
+        throw new Error("SKU/Part # already exists.");
+      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode"))
+        throw new Error("Barcode already exists.");
       throw new Error("Duplicate value (SKU or Barcode).");
     }
     throw e;
@@ -610,8 +657,10 @@ function updateItem(db, item) {
   } catch (e) {
     if (String(e.message).includes("UNIQUE")) {
       const msg = String(e.message);
-      if (msg.includes("items.sku")) throw new Error("SKU/Part # already exists.");
-      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode")) throw new Error("Barcode already exists.");
+      if (msg.includes("items.sku"))
+        throw new Error("SKU/Part # already exists.");
+      if (msg.includes("uq_items_barcode") || msg.includes("items.barcode"))
+        throw new Error("Barcode already exists.");
       throw new Error("Duplicate value (SKU or Barcode).");
     }
     throw e;
@@ -703,6 +752,42 @@ function updateLocation(db, loc) {
   }
 }
 
+function deleteLocation(db, locationIdRaw) {
+  const id = Number(locationIdRaw);
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid location id.");
+
+  // Safety: do NOT allow deleting locations that have history/balances
+  const bal = db
+    .prepare(`SELECT COUNT(*) AS c FROM inventory_balances WHERE location_id=?`)
+    .get(id)?.c;
+
+  if (Number(bal || 0) > 0) {
+    throw new Error(
+      "Cannot delete: location has on-hand balances. Move/zero stock first.",
+    );
+  }
+
+  const tx = db
+    .prepare(`SELECT COUNT(*) AS c FROM transaction_lines WHERE location_id=?`)
+    .get(id)?.c;
+
+  if (Number(tx || 0) > 0) {
+    throw new Error("Cannot delete: location has transaction history.");
+  }
+
+  const cc = db
+    .prepare(`SELECT COUNT(*) AS c FROM cycle_counts WHERE location_id=?`)
+    .get(id)?.c;
+
+  if (Number(cc || 0) > 0) {
+    throw new Error("Cannot delete: location has cycle count history.");
+  }
+
+  const res = db.prepare(`DELETE FROM locations WHERE id=?`).run(id);
+  if (res.changes !== 1) throw new Error("Location not found.");
+  return { ok: true };
+}
+
 function resetDb(db) {
   const tx = db.transaction(() => {
     // order matters due to FKs
@@ -738,4 +823,5 @@ module.exports = {
   resetDb,
   findItemByBarcode,
   attachBarcodeToItem,
+  deleteLocation,
 };

@@ -4,7 +4,9 @@ export async function mountReceive() {
   // Banner + location controls
   const activeLocationBanner = document.getElementById("activeLocationBanner");
   const activeLocationText = document.getElementById("activeLocationText");
-  const activeLocationSubtext = document.getElementById("activeLocationSubtext");
+  const activeLocationSubtext = document.getElementById(
+    "activeLocationSubtext",
+  );
   const btnClearLocation = document.getElementById("btnClearLocation");
   const btnChangeLocation = document.getElementById("btnChangeLocation");
 
@@ -42,8 +44,12 @@ export async function mountReceive() {
 
   // Location change safety panel
   const locationChangeModal = document.getElementById("locationChangeModal");
-  const btnLocationChangeCancel = document.getElementById("btnLocationChangeCancel");
-  const btnLocationChangeClear = document.getElementById("btnLocationChangeClear");
+  const btnLocationChangeCancel = document.getElementById(
+    "btnLocationChangeCancel",
+  );
+  const btnLocationChangeClear = document.getElementById(
+    "btnLocationChangeClear",
+  );
 
   // Smart Add
   const smartAddWrap = document.getElementById("smartAddWrap");
@@ -61,6 +67,11 @@ export async function mountReceive() {
   const smartAddReorderQty = document.getElementById("smartAddReorderQty");
   const smartAddBarcodeType = document.getElementById("smartAddBarcodeType");
   const smartAddPrintLabel = document.getElementById("smartAddPrintLabel");
+  const smartAddModeCreate = document.getElementById("smartAddModeCreate");
+  const smartAddModeAttach = document.getElementById("smartAddModeAttach");
+  const smartAddAttachWrap = document.getElementById("smartAddAttachWrap");
+  const smartAddAttachSearch = document.getElementById("smartAddAttachSearch");
+  const smartAddAttachSelect = document.getElementById("smartAddAttachSelect");
   const smartAddStatus = document.getElementById("smartAddStatus");
 
   // ---------- state ----------
@@ -79,13 +90,17 @@ export async function mountReceive() {
 
   // ---------- helpers ----------
   const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    })[c]);
+    String(s ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
+    );
 
   const toNum = (v, fallback = 0) => {
     const n = Number(String(v ?? "").trim());
@@ -107,7 +122,7 @@ export async function mountReceive() {
     try {
       el.focus();
       el.select();
-    } catch { }
+    } catch {}
   };
 
   function syncQtyOverrideEnabled() {
@@ -145,7 +160,9 @@ export async function mountReceive() {
   }
 
   function setActiveLocation(loc) {
-    activeLoc = loc ? { id: loc.id, code: loc.code, name: loc.name || "" } : null;
+    activeLoc = loc
+      ? { id: loc.id, code: loc.code, name: loc.name || "" }
+      : null;
 
     if (!activeLoc) {
       bannerTint(false);
@@ -206,19 +223,40 @@ export async function mountReceive() {
   }
 
   function findLocationByCode(raw) {
-    const needle = String(raw || "").trim().toLowerCase();
+    const needle = String(raw || "")
+      .trim()
+      .toLowerCase();
     if (!needle) return null;
-    return locs.find((l) => String(l.code || "").trim().toLowerCase() === needle) || null;
+    return (
+      locs.find(
+        (l) =>
+          String(l.code || "")
+            .trim()
+            .toLowerCase() === needle,
+      ) || null
+    );
   }
 
   function findItemByScan(raw) {
-    const needle = String(raw || "").trim().toLowerCase();
+    const needle = String(raw || "")
+      .trim()
+      .toLowerCase();
     if (!needle) return null;
 
-    const byBarcode = items.find((i) => String(i.barcode ?? "").trim().toLowerCase() === needle);
+    const byBarcode = items.find(
+      (i) =>
+        String(i.barcode ?? "")
+          .trim()
+          .toLowerCase() === needle,
+    );
     if (byBarcode) return byBarcode;
 
-    const bySku = items.find((i) => String(i.sku ?? "").trim().toLowerCase() === needle);
+    const bySku = items.find(
+      (i) =>
+        String(i.sku ?? "")
+          .trim()
+          .toLowerCase() === needle,
+    );
     if (bySku) return bySku;
 
     return null;
@@ -296,16 +334,22 @@ export async function mountReceive() {
 
     // SKU: stable + unique enough (barcode itself). Prefix by type if it looks like UPC/EAN.
     const skuPrefix = digitsOnly
-      ? (len === 12 ? "UPC" : len === 13 ? "EAN" : "BC")
+      ? len === 12
+        ? "UPC"
+        : len === 13
+          ? "EAN"
+          : "BC"
       : "BC";
 
     const sku = `${skuPrefix}-${b}`;
 
     // Description/category: safe placeholders that keep flow moving.
     const description =
-      digitsOnly && len === 12 ? `New item (UPC ${b})` :
-        digitsOnly && len === 13 ? `New item (EAN ${b})` :
-          `New item (${b})`;
+      digitsOnly && len === 12
+        ? `New item (UPC ${b})`
+        : digitsOnly && len === 13
+          ? `New item (EAN ${b})`
+          : `New item (${b})`;
 
     const category = "Uncategorized";
 
@@ -327,27 +371,48 @@ export async function mountReceive() {
     smartAddCategory.value = guess.category;
     smartAddUnit.value = smartAddUnit.value || "EA";
     smartAddVendor.value = "";
-    smartAddDefaultCost.value = String(toNum(smartAddDefaultCost.value, 0) || 0);
-    smartAddReorderPoint.value = String(toNum(smartAddReorderPoint.value, 0) || 0);
+    smartAddDefaultCost.value = String(
+      toNum(smartAddDefaultCost.value, 0) || 0,
+    );
+    smartAddReorderPoint.value = String(
+      toNum(smartAddReorderPoint.value, 0) || 0,
+    );
     smartAddReorderQty.value = String(toNum(smartAddReorderQty.value, 0) || 0);
     if (!smartAddBarcodeType.value) smartAddBarcodeType.value = "qr";
     if (smartAddPrintLabel) smartAddPrintLabel.checked = true;
+
+    // Default Smart Add mode = Create
+    setSmartAddMode("create");
+    if (smartAddAttachSearch) smartAddAttachSearch.value = "";
+    fillAttachSelect("");
 
     // Best-effort online lookup (offline-safe, fail-soft)
     try {
       setErr(smartAddStatus, "Looking up barcode…");
 
       const info = await window.api.barcodeLookup(smartAddBarcode.value);
-
       if (info) {
         if (info.title) smartAddDescription.value = info.title;
+        // Auto-suggest top 5 existing items (Attach mode helper)
+        const suggestions = suggestExistingItemsFromLookup(info);
+        if (suggestions.length) {
+          fillAttachSelectWithItems(suggestions);
 
+          // Show Attach UI and hint operator (don’t force it, just surface it)
+          if (smartAddAttachWrap) smartAddAttachWrap.hidden = false;
+          setErr(
+            smartAddStatus,
+            `Possible matches found (${suggestions.length}). Switch to "Attach" to link this barcode.`,
+          );
+        }
         if (info.category) {
           const parts = String(info.category)
             .split(">")
             .map((s) => s.trim())
             .filter(Boolean);
-          smartAddCategory.value = parts.length ? parts[parts.length - 1] : String(info.category).trim();
+          smartAddCategory.value = parts.length
+            ? parts[parts.length - 1]
+            : String(info.category).trim();
         }
 
         if (info.brand) smartAddVendor.value = info.brand;
@@ -391,10 +456,145 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
+  function getSmartAddMode() {
+    return smartAddModeAttach?.checked ? "attach" : "create";
+  }
+
+  function setSmartAddMode(mode) {
+    const isAttach = mode === "attach";
+    if (smartAddModeCreate) smartAddModeCreate.checked = !isAttach;
+    if (smartAddModeAttach) smartAddModeAttach.checked = isAttach;
+
+    if (smartAddAttachWrap) smartAddAttachWrap.hidden = !isAttach;
+
+    // Disable create fields when attaching to existing
+    const disableCreateFields = isAttach;
+    [
+      smartAddSku,
+      smartAddDescription,
+      smartAddCategory,
+      smartAddUnit,
+      smartAddVendor,
+      smartAddDefaultCost,
+      smartAddReorderPoint,
+      smartAddReorderQty,
+    ].forEach((el) => {
+      if (el) el.disabled = disableCreateFields;
+    });
+  }
+
+  function fillAttachSelect(filterText = "") {
+    if (!smartAddAttachSelect) return;
+
+    const q = String(filterText || "")
+      .trim()
+      .toLowerCase();
+    const matches = (items || [])
+      .filter((i) => i && i.id)
+      .filter((i) => {
+        if (!q) return true;
+        const sku = String(i.sku || "").toLowerCase();
+        const desc = String(i.description || "").toLowerCase();
+        return sku.includes(q) || desc.includes(q);
+      })
+      .slice(0, 50);
+
+    smartAddAttachSelect.innerHTML = matches
+      .map((i) => {
+        const label =
+          `${String(i.sku || "").trim()} — ${String(i.description || "").trim()}`.slice(
+            0,
+            120,
+          );
+        return `<option value="${Number(i.id)}">${esc(label)}</option>`;
+      })
+      .join("");
+  }
+
+  function suggestExistingItemsFromLookup(info) {
+    if (!info) return [];
+
+    const title = String(info.title || "").toLowerCase();
+    const brand = String(info.brand || "").toLowerCase();
+    const category = String(info.category || "").toLowerCase();
+
+    const tokens = (s) =>
+      String(s || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .split(/\s+/)
+        .filter((t) => t.length >= 3);
+
+    const tTitle = new Set(tokens(title));
+    const tBrand = new Set(tokens(brand));
+    const tCat = new Set(tokens(category));
+
+    const scoreItem = (it) => {
+      const sku = String(it.sku || "").toLowerCase();
+      const desc = String(it.description || "").toLowerCase();
+      const vndr = String(it.vendor || "").toLowerCase();
+      const cat = String(it.category || "").toLowerCase();
+
+      const itTokens = new Set(tokens(`${sku} ${desc} ${vndr} ${cat}`));
+
+      let score = 0;
+      for (const t of tTitle) if (itTokens.has(t)) score += 3;
+      for (const t of tBrand)
+        if (itTokens.has(t) || vndr.includes(brand)) score += 4;
+      for (const t of tCat) if (itTokens.has(t)) score += 1;
+
+      // small boosts
+      if (brand && vndr.includes(brand)) score += 5;
+      if (title && desc.includes(title.slice(0, Math.min(12, title.length))))
+        score += 2;
+
+      return score;
+    };
+
+    const ranked = (items || [])
+      .filter((it) => it && it.id && it.is_active !== 0)
+      .map((it) => ({ it, score: scoreItem(it) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((x) => x.it);
+
+    return ranked;
+  }
+
+  function fillAttachSelectWithItems(list) {
+    if (!smartAddAttachSelect) return;
+    const rows = Array.isArray(list) ? list : [];
+    smartAddAttachSelect.innerHTML = rows
+      .map((i) => {
+        const label =
+          `${String(i.sku || "").trim()} — ${String(i.description || "").trim()}`.slice(
+            0,
+            120,
+          );
+        return `<option value="${Number(i.id)}">${esc(label)}</option>`;
+      })
+      .join("");
+  }
+
+  async function attachBarcodeToItem(itemId, barcode) {
+    // source is HOUSE by policy
+    await window.api.itemsAttachBarcode({
+      item_id: Number(itemId),
+      barcode: String(barcode || "").trim(),
+      source: "house",
+    });
+  }
+
   function printHouseLabel2x1({ type, value, sku, description }) {
     // NOTE: This is NOT a PDF generator (no deps). It opens a print window sized via CSS @page.
     // It’s stable enough for v1 on cheap printers if scaling is set to 100%.
-    const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
+    const w = window.open(
+      "",
+      "_blank",
+      "noopener,noreferrer,width=500,height=400",
+    );
     if (!w) return;
 
     const safeSku = esc(sku || "");
@@ -446,10 +646,31 @@ export async function mountReceive() {
 
   // ---------- load ----------
   async function loadData() {
-    const [locRes, itemRes] = await Promise.all([window.api.locationsList(), window.api.itemsList()]);
+    const [locRes, itemRes] = await Promise.all([
+      window.api.locationsList(),
+      window.api.itemsList(),
+    ]);
     locs = Array.isArray(locRes) ? locRes : [];
     items = Array.isArray(itemRes) ? itemRes : [];
   }
+
+  // Smart Add mode toggles
+  smartAddModeCreate?.addEventListener("change", () => {
+    if (smartAddModeCreate.checked) setSmartAddMode("create");
+  });
+  smartAddModeAttach?.addEventListener("change", () => {
+    if (smartAddModeAttach.checked) setSmartAddMode("attach");
+  });
+
+  // Attach search
+  smartAddAttachSearch?.addEventListener("input", () => {
+    fillAttachSelect(smartAddAttachSearch.value);
+  });
+  smartAddAttachSearch?.addEventListener("focus", () => {
+    try {
+      smartAddAttachSearch.select();
+    } catch {}
+  });
 
   // ---------- events ----------
   // Select-all focus behavior
@@ -474,7 +695,7 @@ export async function mountReceive() {
     el?.addEventListener("focus", () => {
       try {
         el.select();
-      } catch { }
+      } catch {}
     });
   });
 
@@ -563,7 +784,9 @@ export async function mountReceive() {
 
     if (linesByItemId.size > 0) {
       // fast safety
-      const ok = confirm("Clear active location and discard current batch lines?");
+      const ok = confirm(
+        "Clear active location and discard current batch lines?",
+      );
       if (!ok) return;
       clearBatch();
     }
@@ -630,23 +853,55 @@ export async function mountReceive() {
     setErr(smartAddStatus, "");
 
     const barcode = String(smartAddBarcode.value || "").trim();
-    const sku = String(smartAddSku.value || "").trim();
-    const description = String(smartAddDescription.value || "").trim();
-
     if (!barcode) return setErr(smartAddStatus, "Barcode is required.");
-    if (!sku) return setErr(smartAddStatus, "SKU is required.");
-    if (!description) return setErr(smartAddStatus, "Description is required.");
 
     btnSmartAddSave.disabled = true;
 
     try {
+      const mode = getSmartAddMode();
+
+      if (mode === "attach") {
+        const itemId = Number(smartAddAttachSelect?.value || 0);
+        if (!itemId)
+          return setErr(smartAddStatus, "Select an existing item to attach.");
+
+        await attachBarcodeToItem(itemId, barcode);
+
+        // fetch canonical item (alias lookup) then add to batch
+        const found = await window.api.itemsFindByBarcode(barcode);
+        if (!found) throw new Error("Barcode attached, but lookup failed.");
+
+        addScan(found, smartAddPendingQty);
+
+        if (smartAddPrintLabel?.checked) {
+          printHouseLabel2x1({
+            type: String(smartAddBarcodeType.value || "qr"),
+            value: barcode,
+            sku: found.sku,
+            description: found.description,
+          });
+        }
+
+        closeSmartAdd();
+        window.dispatchEvent(new CustomEvent("data:changed"));
+        return;
+      }
+
+      // mode === "create"
+      const sku = String(smartAddSku.value || "").trim();
+      const description = String(smartAddDescription.value || "").trim();
+      if (!sku) return setErr(smartAddStatus, "SKU is required.");
+      if (!description)
+        return setErr(smartAddStatus, "Description is required.");
+
       const itemPayload = {
         sku,
         description,
         category: String(smartAddCategory.value || "").trim(),
         unit: String(smartAddUnit.value || "EA").trim() || "EA",
         vendor: String(smartAddVendor.value || "").trim(),
-        barcode,
+        // Do NOT rely on items.barcode (barcode is an alias)
+        barcode: null,
         reorder_point: toNum(smartAddReorderPoint.value, 0),
         reorder_qty: toNum(smartAddReorderQty.value, 0),
         default_cost: toNum(smartAddDefaultCost.value, 0),
@@ -654,31 +909,39 @@ export async function mountReceive() {
       };
 
       const created = await window.api.itemsCreate(itemPayload);
-      await refreshItems();
 
-      // Find created item (prefer returned object)
-      const createdItem =
-        created && created.id
-          ? created
-          : items.find((i) => String(i.sku || "").toLowerCase() === sku.toLowerCase()) ||
-          items.find((i) => String(i.barcode || "").toLowerCase() === barcode.toLowerCase());
+      const createdId = Number(created?.id || 0);
+      const finalItemId = createdId || null;
 
-      if (!createdItem) throw new Error("Item created, but could not re-load it.");
+      // Attach scanned barcode as HOUSE alias
+      if (finalItemId) {
+        await attachBarcodeToItem(finalItemId, barcode);
+      } else {
+        // fallback: refresh and find by sku
+        await refreshItems();
+        const bySku = items.find(
+          (i) => String(i.sku || "").toLowerCase() === sku.toLowerCase(),
+        );
+        if (!bySku?.id)
+          throw new Error("Item created, but could not resolve new item id.");
+        await attachBarcodeToItem(bySku.id, barcode);
+      }
 
-      // Auto-add to receive batch
-      addScan(createdItem, smartAddPendingQty);
+      // Resolve item via alias and add
+      const found = await window.api.itemsFindByBarcode(barcode);
+      if (!found) throw new Error("Item created, but barcode lookup failed.");
 
-      // Optional print
+      addScan(found, smartAddPendingQty);
+
       if (smartAddPrintLabel?.checked) {
         printHouseLabel2x1({
           type: String(smartAddBarcodeType.value || "qr"),
           value: barcode,
-          sku,
-          description,
+          sku: found.sku,
+          description: found.description,
         });
       }
 
-      // Close and return to scan loop
       closeSmartAdd();
       window.dispatchEvent(new CustomEvent("data:changed"));
     } catch (e) {

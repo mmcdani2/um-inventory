@@ -1,8 +1,4 @@
 ﻿﻿export async function mountHome() {
-  const kpiSkus = document.getElementById("kpiSkus");
-  const kpiLocs = document.getElementById("kpiLocs");
-  const kpiReorder = document.getElementById("kpiReorder");
-  const kpiTx7d = document.getElementById("kpiTx7d");
 
   function toast(text, isErr = false) {
     const el = document.createElement("div");
@@ -45,10 +41,11 @@
     try {
       const stats = await window.api.homeStats();
 
-      if (kpiSkus) kpiSkus.textContent = String(stats?.skus ?? 0);
-      if (kpiLocs) kpiLocs.textContent = String(stats?.locations ?? 0);
-      if (kpiReorder) kpiReorder.textContent = String(stats?.reorder ?? 0);
-      if (kpiTx7d) kpiTx7d.textContent = String(stats?.tx7d ?? 0);
+      if (kpiSkus) kpiSkus.textContent = String(stats?.total_skus ?? 0);
+      if (kpiLocs) kpiLocs.textContent = String(stats?.total_locations ?? 0);
+      if (kpiReorder)
+        kpiReorder.textContent = String(stats?.below_reorder ?? 0);
+      if (kpiTx7d) kpiTx7d.textContent = String(stats?.tx_7d ?? 0);
     } catch (e) {
       toast(e?.message || "Failed to load Home.", true);
     }

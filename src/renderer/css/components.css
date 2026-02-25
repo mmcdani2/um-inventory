@@ -634,3 +634,12 @@ input[type="number"] {
   background: rgba(227,179,65,.18);
   color: var(--text);
 }
+
+/* Danger button — matches the red used in Receive banner */
+.btn-danger{
+  border-color: rgba(239,68,68,.55);
+  background: rgba(239,68,68,.10);
+}
+.btn-danger:hover{
+  background: rgba(239,68,68,.18);
+}

@@ -1,232 +1,556 @@
 ﻿<!-- src/renderer/pages/receive.html -->
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Receive</title>
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Receive</title>
-  <link rel="stylesheet" href="../css/styles.css" />
-</head>
-
-<body>
-  <main class="page" id="receivePage">
-
-    <div class="page-head">
-      <div>
-        <div class="page-title">Receive</div>
-        <div class="page-sub">Scan location → scan items → finalize one batch.</div>
-      </div>
-      <div class="page-actions actions">
-        <button id="btnUndoLast" class="btn" type="button" disabled>Undo last</button>
-        <button id="btnClearBatch" class="btn" type="button" disabled>Clear batch</button>
-      </div>
-    </div>
-
-    <!-- ACTIVE LOCATION (JS will tint red/green using theme tokens) -->
-    <div id="activeLocationBanner" class="card-block"
-      style="border-color: rgba(255,255,255,.12); background: rgba(15,22,32,.55);">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <div style="min-width:0;">
-          <div class="msg" style="margin:0; letter-spacing:.08em; text-transform:uppercase;">Active Location</div>
-          <div id="activeLocationText" style="font-weight:900; font-size:22px; margin-top:6px;">NONE SET</div>
-          <div id="activeLocationSubtext" class="msg" style="margin-top:4px;"></div>
-        </div>
-        <div class="actions">
-          <button id="btnClearLocation" class="btn" type="button">Clear</button>
-          <button id="btnChangeLocation" class="btn" type="button">Change</button>
+  <body>
+    <main class="page" id="receivePage">
+      <div class="page-head">
+        <div class="page-actions actions">
+          <button id="btnUndoLast" class="btn" type="button" disabled>
+            Undo last
+          </button>
+          <button id="btnClearBatch" class="btn" type="button" disabled>
+            Clear batch
+          </button>
         </div>
       </div>
-    </div>
 
-    <div class="split" style="margin-top:12px;">
-
-      <!-- LOCATION SCAN -->
-      <div class="card-block">
-        <div class="msg" style="margin:0 0 8px 0;">Scan Location</div>
-        <input id="locationScanInput" class="input" type="text" inputmode="text" autocomplete="off" autocapitalize="off"
-          spellcheck="false" placeholder="Scan location QR/barcode…"
-          style="width:100%; font-size:18px; padding:14px 12px;" />
-        <div id="locationScanError" class="msg err"></div>
+      <!-- ACTIVE LOCATION (JS will tint red/green using theme tokens) -->
+      <div
+        id="activeLocationBanner"
+        class="card-block"
+        style="
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(15, 22, 32, 0.55);
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          "
+        >
+          <div style="min-width: 0">
+            <div
+              class="msg"
+              style="
+                margin: 0;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+              "
+            >
+              Active Location
+            </div>
+            <div
+              id="activeLocationText"
+              style="font-weight: 900; font-size: 22px; margin-top: 6px"
+            >
+              NONE SET
+            </div>
+            <div
+              id="activeLocationSubtext"
+              class="msg"
+              style="margin-top: 4px"
+            ></div>
+          </div>
+          <div class="actions">
+            <button id="btnClearLocation" class="btn" type="button">
+              Clear
+            </button>
+            <button id="btnChangeLocation" class="btn" type="button">
+              Change
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- ITEM SCAN -->
-      <div class="card-block">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
-          <div class="msg" style="margin:0;">Scan Item</div>
+      <div class="split" style="margin-top: 12px">
+        <!-- LOCATION SCAN -->
+        <div class="card-block">
+          <div class="msg" style="margin: 0 0 8px 0">Scan Location</div>
+          <input
+            id="locationScanInput"
+            class="input"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Scan location QR/barcode…"
+            style="width: 100%; font-size: 18px; padding: 14px 12px"
+          />
+          <div id="locationScanError" class="msg err"></div>
+        </div>
 
-          <div style="display:flex; align-items:center; gap:10px;">
-            <label class="msg" style="margin:0; display:flex; align-items:center; gap:8px; user-select:none;">
-              <input id="qtyOverrideEnabled" type="checkbox" />
-              Qty
+        <!-- ITEM SCAN -->
+        <div class="card-block">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+              margin-bottom: 8px;
+            "
+          >
+            <div class="msg" style="margin: 0">Scan Item</div>
+
+            <div style="display: flex; align-items: center; gap: 10px">
+              <label
+                class="msg"
+                style="
+                  margin: 0;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  user-select: none;
+                "
+              >
+                <input id="qtyOverrideEnabled" type="checkbox" />
+                Qty
+              </label>
+              <input
+                id="qtyOverrideInput"
+                class="input input-mini"
+                type="number"
+                min="1"
+                step="1"
+                value="1"
+                inputmode="numeric"
+                disabled
+                style="width: 84px"
+              />
+            </div>
+          </div>
+
+          <input
+            id="itemScanInput"
+            class="input"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Scan item barcode…"
+            disabled
+            style="width: 100%; font-size: 18px; padding: 14px 12px"
+          />
+          <div id="itemScanError" class="msg err"></div>
+
+          <div class="msg" style="margin-top: 10px">
+            <span id="lastScanStatus"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMART ADD (shown when unknown barcode scanned) -->
+      <div
+        id="smartAddWrap"
+        class="card-block"
+        hidden
+        style="
+          margin-top: 12px;
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(15, 22, 32, 0.55);
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+          "
+        >
+          <div>
+            <div style="font-weight: 900; font-size: 16px">Smart Add</div>
+            <div class="msg" style="margin-top: 6px">
+              Unknown barcode scanned. Confirm minimal info, save item, auto-add
+              to batch.
+            </div>
+          </div>
+          <div class="actions">
+            <button id="btnSmartAddCancel" class="btn" type="button">
+              Cancel
+            </button>
+            <button id="btnSmartAddSave" class="btn btn-primary" type="button">
+              Save
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top: 10px" class="split">
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Barcode</div>
+            <input
+              id="smartAddBarcode"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">SKU</div>
+            <input
+              id="smartAddSku"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+
+          <div style="grid-column: 1 / -1">
+            <div class="msg" style="margin: 0 0 6px 0">Description</div>
+            <input
+              id="smartAddDescription"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- Attach barcode to existing item (dupe-killer) -->
+          <div class="field span-2" style="margin-top: 6px">
+            <div class="lbl">Smart Add Mode</div>
+            <div
+              style="
+                display: flex;
+                gap: 14px;
+                align-items: center;
+                flex-wrap: wrap;
+              "
+            >
+              <label
+                class="msg"
+                style="
+                  margin: 0;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  user-select: none;
+                "
+              >
+                <input
+                  id="smartAddModeCreate"
+                  type="radio"
+                  name="smartAddMode"
+                  value="create"
+                  checked
+                />
+                Create new item
+              </label>
+              <label
+                class="msg"
+                style="
+                  margin: 0;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  user-select: none;
+                "
+              >
+                <input
+                  id="smartAddModeAttach"
+                  type="radio"
+                  name="smartAddMode"
+                  value="attach"
+                />
+                Attach barcode to existing item
+              </label>
+            </div>
+          </div>
+
+          <div class="field span-2" id="smartAddAttachWrap" hidden>
+            <div class="lbl">Find existing item</div>
+            <input
+              id="smartAddAttachSearch"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+              placeholder="Type SKU or description…"
+            />
+            <div class="msg" style="margin-top: 8px">Select match</div>
+            <select
+              id="smartAddAttachSelect"
+              class="input input-mini"
+              style="width: 100%"
+            ></select>
+            <div class="msg" style="margin-top: 8px">
+              This will link the scanned barcode to the selected item and add it
+              to the batch.
+            </div>
+          </div>
+
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Category</div>
+            <input
+              id="smartAddCategory"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Unit</div>
+            <input
+              id="smartAddUnit"
+              class="input input-mini"
+              type="text"
+              value="EA"
+              autocomplete="off"
+            />
+          </div>
+
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Vendor</div>
+            <input
+              id="smartAddVendor"
+              class="input input-mini"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Default Cost</div>
+            <input
+              id="smartAddDefaultCost"
+              class="input input-mini"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+          </div>
+
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Reorder Point</div>
+            <input
+              id="smartAddReorderPoint"
+              class="input input-mini"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+          </div>
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">Reorder Qty</div>
+            <input
+              id="smartAddReorderQty"
+              class="input input-mini"
+              type="number"
+              step="0.01"
+              min="0"
+              value="0"
+            />
+          </div>
+
+          <div>
+            <div class="msg" style="margin: 0 0 6px 0">House Label Type</div>
+            <select
+              id="smartAddBarcodeType"
+              class="input input-mini"
+              style="width: 100%"
+            >
+              <option value="qr">QR</option>
+              <option value="code128">Code128 (1D)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: flex-end; gap: 12px">
+            <label
+              class="msg"
+              style="
+                margin: 0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                user-select: none;
+              "
+            >
+              <input id="smartAddPrintLabel" type="checkbox" checked />
+              Print house label (2&quot;x1&quot;)
             </label>
-            <input id="qtyOverrideInput" class="input input-mini" type="number" min="1" step="1" value="1"
-              inputmode="numeric" disabled style="width:84px;" />
           </div>
-        </div>
 
-        <input id="itemScanInput" class="input" type="text" inputmode="text" autocomplete="off" autocapitalize="off"
-          spellcheck="false" placeholder="Scan item barcode…" disabled
-          style="width:100%; font-size:18px; padding:14px 12px;" />
-        <div id="itemScanError" class="msg err"></div>
-
-        <div class="msg" style="margin-top:10px;">
-          <span id="lastScanStatus"></span>
+          <div
+            id="smartAddStatus"
+            class="msg err"
+            style="grid-column: 1 / -1"
+          ></div>
         </div>
       </div>
 
-    </div>
+      <!-- LINES LIST -->
+      <div class="card-block" style="margin-top: 12px">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+          "
+        >
+          <div style="font-weight: 800">Lines</div>
+        </div>
 
-    <!-- SMART ADD (shown when unknown barcode scanned) -->
-    <div id="smartAddWrap" class="card-block" hidden
-      style="margin-top:12px; border-color: rgba(255,255,255,.12); background: rgba(15,22,32,.55);">
-      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-        <div>
-          <div style="font-weight:900; font-size:16px;">Smart Add</div>
-          <div class="msg" style="margin-top:6px;">
-            Unknown barcode scanned. Confirm minimal info, save item, auto-add to batch.
+        <ul
+          id="receiveLinesList"
+          style="
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          "
+        ></ul>
+
+        <div id="emptyLinesHint" class="msg">
+          Scan items to build the batch.
+        </div>
+      </div>
+
+      <!-- OPTIONAL DETAILS -->
+      <div class="card-block" style="margin-top: 12px">
+        <details id="batchDetails">
+          <summary class="msg" style="cursor: pointer; margin: 0">
+            Details (optional)
+          </summary>
+          <div class="split" style="margin-top: 10px">
+            <div>
+              <div class="msg" style="margin: 0 0 6px 0">Initials</div>
+              <input
+                id="receiveUserInitials"
+                class="input input-mini"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+            <div>
+              <div class="msg" style="margin: 0 0 6px 0">Vendor</div>
+              <input
+                id="receiveVendor"
+                class="input input-mini"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+            <div>
+              <div class="msg" style="margin: 0 0 6px 0">PO #</div>
+              <input
+                id="receivePoNumber"
+                class="input input-mini"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+            <div>
+              <div class="msg" style="margin: 0 0 6px 0">Notes</div>
+              <input
+                id="receiveNotes"
+                class="input input-mini"
+                type="text"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- STICKY FINALIZE BAR -->
+      <div
+        class="card-block"
+        id="finalizeBar"
+        style="
+          position: sticky;
+          bottom: 0;
+          margin-top: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        "
+      >
+        <div style="display: flex; gap: 18px; flex-wrap: wrap">
+          <div>
+            <div class="msg" style="margin: 0">Lines</div>
+            <div
+              id="finalizeLineCount"
+              style="font-weight: 900; font-size: 18px"
+            >
+              0
+            </div>
+          </div>
+          <div>
+            <div class="msg" style="margin: 0">Units</div>
+            <div
+              id="finalizeUnitCount"
+              style="font-weight: 900; font-size: 18px"
+            >
+              0
+            </div>
+          </div>
+          <div>
+            <div class="msg" style="margin: 0">Location</div>
+            <div
+              id="finalizeLocationText"
+              style="font-weight: 900; font-size: 14px"
+            >
+              —
+            </div>
           </div>
         </div>
+
         <div class="actions">
-          <button id="btnSmartAddCancel" class="btn" type="button">Cancel</button>
-          <button id="btnSmartAddSave" class="btn btn-primary" type="button">Save</button>
+          <button
+            id="btnFinalizeReceive"
+            class="btn btn-primary"
+            type="button"
+            disabled
+          >
+            Finalize
+          </button>
         </div>
       </div>
 
-      <div style="margin-top:10px;" class="split">
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Barcode</div>
-          <input id="smartAddBarcode" class="input input-mini" type="text" autocomplete="off" />
+      <!-- LOCATION CHANGE SAFETY -->
+      <div
+        id="locationChangeModal"
+        class="card-block"
+        hidden
+        style="
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(15, 22, 32, 0.55);
+          margin-top: 12px;
+        "
+      >
+        <div style="font-weight: 900; font-size: 16px; margin-bottom: 6px">
+          Change location?
         </div>
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">SKU</div>
-          <input id="smartAddSku" class="input input-mini" type="text" autocomplete="off" />
+        <div class="msg" style="margin-top: 0">
+          This batch has lines. Changing location requires clearing the batch.
         </div>
-
-        <div style="grid-column: 1 / -1;">
-          <div class="msg" style="margin:0 0 6px 0;">Description</div>
-          <input id="smartAddDescription" class="input input-mini" type="text" autocomplete="off" />
-        </div>
-
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Category</div>
-          <input id="smartAddCategory" class="input input-mini" type="text" autocomplete="off" />
-        </div>
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Unit</div>
-          <input id="smartAddUnit" class="input input-mini" type="text" value="EA" autocomplete="off" />
-        </div>
-
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Vendor</div>
-          <input id="smartAddVendor" class="input input-mini" type="text" autocomplete="off" />
-        </div>
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Default Cost</div>
-          <input id="smartAddDefaultCost" class="input input-mini" type="number" step="0.01" min="0" value="0" />
-        </div>
-
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Reorder Point</div>
-          <input id="smartAddReorderPoint" class="input input-mini" type="number" step="0.01" min="0" value="0" />
-        </div>
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">Reorder Qty</div>
-          <input id="smartAddReorderQty" class="input input-mini" type="number" step="0.01" min="0" value="0" />
-        </div>
-
-        <div>
-          <div class="msg" style="margin:0 0 6px 0;">House Label Type</div>
-          <select id="smartAddBarcodeType" class="input input-mini" style="width:100%;">
-            <option value="qr">QR</option>
-            <option value="code128">Code128 (1D)</option>
-          </select>
-        </div>
-
-        <div style="display:flex; align-items:flex-end; gap:12px;">
-          <label class="msg" style="margin:0; display:flex; align-items:center; gap:8px; user-select:none;">
-            <input id="smartAddPrintLabel" type="checkbox" checked />
-            Print house label (2&quot;x1&quot;)
-          </label>
-        </div>
-
-        <div id="smartAddStatus" class="msg err" style="grid-column: 1 / -1;"></div>
-      </div>
-    </div>
-
-    <!-- LINES LIST -->
-    <div class="card-block" style="margin-top:12px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
-        <div style="font-weight:800;">Lines</div>
-      </div>
-
-      <ul id="receiveLinesList"
-        style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;"></ul>
-
-      <div id="emptyLinesHint" class="msg">Scan items to build the batch.</div>
-    </div>
-
-    <!-- OPTIONAL DETAILS -->
-    <div class="card-block" style="margin-top:12px;">
-      <details id="batchDetails">
-        <summary class="msg" style="cursor:pointer; margin:0;">Details (optional)</summary>
-        <div class="split" style="margin-top:10px;">
-          <div>
-            <div class="msg" style="margin:0 0 6px 0;">Initials</div>
-            <input id="receiveUserInitials" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-          <div>
-            <div class="msg" style="margin:0 0 6px 0;">Vendor</div>
-            <input id="receiveVendor" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-          <div>
-            <div class="msg" style="margin:0 0 6px 0;">PO #</div>
-            <input id="receivePoNumber" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-          <div>
-            <div class="msg" style="margin:0 0 6px 0;">Notes</div>
-            <input id="receiveNotes" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-        </div>
-      </details>
-    </div>
-
-    <!-- STICKY FINALIZE BAR -->
-    <div class="card-block" id="finalizeBar"
-      style="position: sticky; bottom: 0; margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-      <div style="display:flex; gap:18px; flex-wrap:wrap;">
-        <div>
-          <div class="msg" style="margin:0;">Lines</div>
-          <div id="finalizeLineCount" style="font-weight:900; font-size:18px;">0</div>
-        </div>
-        <div>
-          <div class="msg" style="margin:0;">Units</div>
-          <div id="finalizeUnitCount" style="font-weight:900; font-size:18px;">0</div>
-        </div>
-        <div>
-          <div class="msg" style="margin:0;">Location</div>
-          <div id="finalizeLocationText" style="font-weight:900; font-size:14px;">—</div>
+        <div class="actions" style="margin-top: 10px">
+          <button id="btnLocationChangeCancel" class="btn" type="button">
+            Cancel
+          </button>
+          <button id="btnLocationChangeClear" class="btn" type="button">
+            Clear batch
+          </button>
         </div>
       </div>
 
-      <div class="actions">
-        <button id="btnFinalizeReceive" class="btn btn-primary" type="button" disabled>Finalize</button>
-      </div>
-    </div>
-
-    <!-- LOCATION CHANGE SAFETY -->
-    <div id="locationChangeModal" class="card-block" hidden
-      style="border-color: rgba(255,255,255,.12); background: rgba(15,22,32,.55); margin-top:12px;">
-      <div style="font-weight:900; font-size:16px; margin-bottom:6px;">Change location?</div>
-      <div class="msg" style="margin-top:0;">This batch has lines. Changing location requires clearing the batch.</div>
-      <div class="actions" style="margin-top:10px;">
-        <button id="btnLocationChangeCancel" class="btn" type="button">Cancel</button>
-        <button id="btnLocationChangeClear" class="btn" type="button">Clear batch</button>
-      </div>
-    </div>
-
-    <script src="./receive.js"></script>
-  </main>
-</body>
-
+      <script src="./receive.js"></script>
+    </main>
+  </body>
 </html>
