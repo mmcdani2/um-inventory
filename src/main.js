@@ -131,6 +131,19 @@ app.whenReady().then(() => {
 
   ipcMain.handle("db:reset", () => dbLayer.resetDb(db));
 
+  ipcMain.handle("receive:submitBatch", async (_evt, payload) => {
+    return dbLayer.receiveBatch(db, payload);
+  });
+
+  ipcMain.handle("items:findByBarcode", (_evt, barcode) => {
+    return dbLayer.findItemByBarcode(db, barcode);
+  });
+
+  ipcMain.handle("items:attachBarcode", (_evt, payload) => {
+    // payload: { item_id, barcode, source? }
+    return dbLayer.attachBarcodeToItem(db, payload);
+  });
+
   createWindow();
 
   app.on("activate", () => {

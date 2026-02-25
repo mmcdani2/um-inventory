@@ -1,10 +1,4 @@
 ﻿<div class="page">
-  <div class="page-head">
-    <div>
-
-    </div>
-  </div>
-
   <!-- KPIs -->
   <div class="kpi-grid">
     <div class="kpi">
@@ -27,41 +21,9 @@
       <div class="kpi-v mono" id="kpiTx7d">—</div>
     </div>
   </div>
+  <div id="homeMsg" class="msg"></div>
 
   <div class="split">
-    <!-- Add Location -->
-    <div class="card-block">
-      <div class="card-title">Add Location</div>
-
-      <div class="inline-form">
-        <input
-          id="lCode"
-          class="input mono"
-          placeholder="Code (SHOP-A1 / TRUCK-01)"
-        />
-        <input id="lName" class="input" placeholder="Name (Main shop bin A1)" />
-
-        <button id="lSave" class="btn btn-primary">Add</button>
-        <button id="lCancel" class="btn" disabled>Cancel</button>
-      </div>
-
-      <div id="lMsg" class="msg"></div>
-      <div class="hint" id="homeHint"></div>
-
-      <div class="table-wrap home-table">
-        <table class="table" id="locTable">
-          <thead>
-            <tr>
-              <th style="width: 160px">Code</th>
-              <th>Name</th>
-              <th style="width: 220px">Created</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-    </div>
 
     <!-- Quick Actions -->
     <div class="card-block quick-card">
@@ -72,7 +34,6 @@
         <button class="btn qa" data-go="counts">Counts</button>
         <button class="btn qa" data-go="items">Items</button>
         <button class="btn qa" data-go="reports">Reports</button>
-        <button id="btnExportInventoryCsv" class="btn qa">Export Inventory CSV</button>
       </div>
     </div>
   </div>

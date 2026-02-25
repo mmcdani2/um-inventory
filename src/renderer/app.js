@@ -13,10 +13,69 @@ function isAdminUnlocked() {
 }
 
 function unlockAdminPrompt() {
-  const pw = prompt("Admin password:");
-  if (pw !== "umadmin") return false;
-  sessionStorage.setItem("adminUnlocked", "1");
-  return true;
+  return new Promise((resolve) => {
+    // modal shell
+    const wrap = document.createElement("div");
+    wrap.className = "modal";
+    wrap.innerHTML = `
+      <div class="modal-backdrop"></div>
+      <div class="modal-card" style="max-width:420px">
+        <div class="modal-head">
+          <div class="modal-title">Admin Password</div>
+          <button class="btn" data-cancel>✕</button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <div class="lbl">Password</div>
+            <input id="adminPw" class="input" type="password" autocomplete="off" />
+          </label>
+          <div class="msg err hidden" id="adminErr">Wrong password.</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" data-cancel>Cancel</button>
+          <button class="btn btn-primary" data-ok>Unlock</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const input = wrap.querySelector("#adminPw");
+    const err = wrap.querySelector("#adminErr");
+
+    const close = (ok) => {
+      wrap.remove();
+      resolve(ok);
+    };
+
+    const tryUnlock = () => {
+      const pw = String(input.value || "");
+      if (pw !== "umadmin") {
+        err.classList.remove("hidden");
+        input.focus();
+        input.select();
+        return;
+      }
+      sessionStorage.setItem("adminUnlocked", "1");
+      close(true);
+    };
+
+    wrap.addEventListener("click", (e) => {
+      if (e.target.closest("[data-cancel]") || e.target.classList.contains("modal-backdrop")) {
+        close(false);
+      }
+      if (e.target.closest("[data-ok]")) tryUnlock();
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") tryUnlock();
+      if (e.key === "Escape") close(false);
+    });
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+  });
 }
 
 async function loadView(routeId) {
@@ -24,7 +83,8 @@ async function loadView(routeId) {
 
   // Admin gate (session only)
   if (route.id === "admin" && !isAdminUnlocked()) {
-    if (!unlockAdminPrompt()) {
+    const ok = await unlockAdminPrompt();
+    if (!ok) {
       location.hash = "#home";
       return;
     }
@@ -41,6 +101,11 @@ async function loadView(routeId) {
   if (route.id === "items") {
     const mod = await import("./pages/items.js");
     await mod.mountItems();
+  }
+  
+  if (route.id === "locations") {
+    const mod = await import("./pages/locations.js");
+    await mod.mountLocations();
   }
 
   if (route.id === "home") {
@@ -104,9 +169,10 @@ async function refreshDbInfo() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  console.log("[CANARY] renderer app.js DOMContentLoaded");
+  console.log("[NAV HTML]", document.getElementById("nav")?.innerHTML);
+  console.log("[NAV ROUTES]", routes.map(r => r.id));
   renderNav();
-  $("btnRefresh").addEventListener("click", refreshDbInfo);
+  $("btnRefresh")?.addEventListener("click", refreshDbInfo);
 
   await refreshDbInfo();
 

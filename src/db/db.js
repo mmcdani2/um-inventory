@@ -76,6 +76,56 @@ function listItems(db) {
     .all();
 }
 
+function findItemByBarcode(db, barcodeRaw) {
+  const barcode = String(barcodeRaw || "").trim();
+  if (!barcode) return null;
+
+  // 1) Preferred: alias table (many barcodes -> one item)
+  const hit = db
+    .prepare(
+      `
+      SELECT i.*
+      FROM item_barcodes ib
+      JOIN items i ON i.id = ib.item_id
+      WHERE ib.barcode = ?
+      LIMIT 1
+    `,
+    )
+    .get(barcode);
+
+  if (hit) return hit;
+
+  // 2) Legacy fallback: items.barcode (until we fully migrate)
+  return db
+    .prepare(`SELECT * FROM items WHERE barcode = ? LIMIT 1`)
+    .get(barcode) || null;
+}
+
+function attachBarcodeToItem(db, { item_id, barcode, source = "" }) {
+  const itemId = Number(item_id);
+  const bc = String(barcode || "").trim();
+  const src = String(source || "").trim();
+
+  if (!Number.isFinite(itemId) || itemId <= 0) throw new Error("Invalid item_id.");
+  if (!bc) throw new Error("Barcode is required.");
+
+  try {
+    db.prepare(
+      `
+      INSERT INTO item_barcodes (item_id, barcode, source)
+      VALUES (?, ?, ?)
+    `,
+    ).run(itemId, bc, src);
+
+    return { ok: true };
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) {
+      throw new Error("Barcode already attached to another item.");
+    }
+    throw e;
+  }
+}
+
 function listLocations(db) {
   return db.prepare(`
     SELECT id, code, name, created_at
@@ -255,6 +305,82 @@ function getOnHand(db) {
   `,
     )
     .all();
+}
+
+function receiveBatch(db, payload) {
+  const user_initials = String(payload.user_initials || "")
+    .trim()
+    .toUpperCase();
+  const vendor = String(payload.vendor || "").trim();
+  const po_number = String(payload.po_number || "").trim();
+  const notes = String(payload.notes || "").trim();
+
+  const location_id = Number(payload.location_id);
+  const lines = Array.isArray(payload.lines) ? payload.lines : [];
+
+  // Header fields are optional (scanner-first workflows).
+  if (!Number.isFinite(location_id) || location_id <= 0)
+    throw new Error("Location required.");
+  if (!lines.length) throw new Error("At least one line is required.");
+
+  // validate lines up front (fail-fast)
+  for (const [idx, ln] of lines.entries()) {
+    const item_id = Number(ln.item_id);
+    const qty = Number(ln.qty);
+    const unit_cost = Number(ln.unit_cost || 0);
+
+    if (!Number.isFinite(item_id) || item_id <= 0)
+      throw new Error(`Line ${idx + 1}: Item required.`);
+    if (!Number.isFinite(qty) || qty <= 0)
+      throw new Error(`Line ${idx + 1}: Qty must be > 0.`);
+    if (!Number.isFinite(unit_cost))
+      throw new Error(`Line ${idx + 1}: Unit cost invalid.`);
+  }
+
+  const tx = db.transaction(() => {
+    const txRes = db
+      .prepare(
+        `
+        INSERT INTO transactions (type, user_initials, vendor, po_number, notes)
+        VALUES ('RECEIVE', ?, ?, ?, ?)
+      `,
+      )
+      .run(user_initials, vendor, po_number, notes);
+
+    const txId = txRes.lastInsertRowid;
+
+    const insLine = db.prepare(
+      `
+        INSERT INTO transaction_lines (transaction_id, item_id, location_id, qty, unit_cost)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+    );
+
+    const upsertBal = db.prepare(
+      `
+        INSERT INTO inventory_balances (item_id, location_id, on_hand)
+        VALUES (?, ?, ?)
+        ON CONFLICT(item_id, location_id)
+        DO UPDATE SET
+          on_hand = on_hand + excluded.on_hand,
+          updated_at = datetime('now')
+      `,
+    );
+
+    for (const ln of lines) {
+      const item_id = Number(ln.item_id);
+      const qty = Number(ln.qty);
+      const unit_cost = Number(ln.unit_cost || 0);
+
+      insLine.run(txId, item_id, location_id, qty, unit_cost);
+      upsertBal.run(item_id, location_id, qty);
+    }
+
+    return txId;
+  });
+
+  const txId = tx();
+  return { transaction_id: txId, lines: lines.length };
 }
 
 function checkoutItem(db, payload) {
@@ -601,6 +727,7 @@ module.exports = {
   importItemsCsv,
   createLocation,
   receiveItem,
+  receiveBatch,
   getOnHand,
   checkoutItem,
   countAndAdjust,
@@ -609,4 +736,6 @@ module.exports = {
   getHomeStats,
   updateLocation,
   resetDb,
+  findItemByBarcode,
+  attachBarcodeToItem,
 };

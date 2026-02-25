@@ -28,6 +28,18 @@ CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
 CREATE INDEX IF NOT EXISTS idx_items_vendor ON items(vendor);
 CREATE INDEX IF NOT EXISTS idx_items_barcode ON items(barcode);
 
+-- Barcode aliases (many barcodes -> one item)
+CREATE TABLE IF NOT EXISTS item_barcodes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  barcode TEXT NOT NULL UNIQUE,
+  source TEXT NOT NULL DEFAULT '',        -- 'vendor', 'house', 'upcitemdb', etc.
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_item_barcodes_item_id ON item_barcodes(item_id);
+
 -- Locations/bins
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

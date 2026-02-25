@@ -1,0 +1,67 @@
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h2>Locations</h2>
+      <div class="hint">Create, search, and manage Areas.</div>
+    </div>
+  </div>
+
+  <!-- Add Location -->
+  <div class="card-block">
+    <div class="card-title">Add Location</div>
+
+    <div class="inline-form">
+      <input
+        id="lCode"
+        class="input mono"
+        placeholder="Code (SHOP-A1 / TRUCK-01)"
+        autocomplete="off"
+      />
+      <input
+        id="lName"
+        class="input"
+        placeholder="Name (Main shop bin A1)"
+        autocomplete="off"
+      />
+
+      <button id="lSave" class="btn btn-primary">Add</button>
+      <button id="lClear" class="btn">Clear</button>
+    </div>
+
+    <div id="lMsg" class="msg"></div>
+  </div>
+
+  <!-- List -->
+  <div class="card-block">
+    <div class="card-title">All Locations</div>
+    <div style="height:12px"></div>
+    <div class="items-search">
+      <input
+        id="locSearch"
+        class="input"
+        type="search"
+        placeholder="Search code or name…"
+        autocomplete="off"
+      />
+      <button id="locSearchClear" class="btn btn-ghost" type="button">Clear</button>
+    </div>
+    <div style="height:12px"></div>
+    <div class="table-wrap">
+      <table class="table" id="locTable">
+        <colgroup>
+          <col style="width: 180px" />
+          <col />
+          <col style="width: 220px" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>CODE</th>
+            <th>NAME</th>
+            <th>CREATED</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
