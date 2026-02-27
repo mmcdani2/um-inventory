@@ -92,4 +92,5 @@ contextBridge.exposeInMainWorld("api", {
   adminCheck: (password) => ipcRenderer.invoke("admin:check", password),
   locationsImportCsv: (payload) =>
     ipcRenderer.invoke("locations:importCsv", payload),
+  labelRenderBarcodePng: (payload) => ipcRenderer.invoke("label:renderBarcodePng", payload),
 });

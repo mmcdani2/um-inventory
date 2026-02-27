@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
+    "bwip-js": "^4.8.0",
     "electron-squirrel-startup": "^1.0.1"
   },
   "productName": "UM Inventory"

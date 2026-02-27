@@ -145,7 +145,7 @@ app.whenReady().then(() => {
       // Close DB so the file isn't locked (WAL mode)
       try {
         db?.close?.();
-      } catch {}
+      } catch { }
 
       const dbPath = getDbPath();
       const wal = `${dbPath}-wal`;
@@ -155,7 +155,7 @@ app.whenReady().then(() => {
       for (const p of [dbPath, wal, shm]) {
         try {
           fs.unlinkSync(p);
-        } catch {}
+        } catch { }
       }
 
       // Relaunch clean
@@ -190,6 +190,27 @@ app.whenReady().then(() => {
   ipcMain.handle("locations:importCsv", (_evt, payload) =>
     dbLayer.importLocationsCsv(db, payload),
   );
+
+  // Barcode/label rendering (offline, deterministic)
+  const bwipjs = require("bwip-js");
+
+  ipcMain.handle("label:renderBarcodePng", async (_evt, { type, text, scale = 3 }) => {
+    const t = String(text || "").trim();
+    if (!t) throw new Error("Barcode text required.");
+
+    // Map our UI types -> bwip-js bcid
+    const bcid = (String(type || "").toLowerCase() === "code128") ? "code128" : "qrcode";
+
+    const png = await bwipjs.toBuffer({
+      bcid,
+      text: t,
+      scale: Number(scale) || 3,
+      includetext: false,
+      padding: 0,
+    });
+
+    return `data:image/png;base64,${png.toString("base64")}`;
+  });
 
   createWindow();
 
