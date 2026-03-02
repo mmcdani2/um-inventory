@@ -205,20 +205,41 @@ export async function mountReceive() {
     syncFinalizeEnabled();
   }
 
-  function findLocationByCode(raw) {
+  async function findLocationByCode(raw) {
     const needle = String(raw || "").trim().toLowerCase();
     if (!needle) return null;
-    return locs.find((l) => String(l.code || "").trim().toLowerCase() === needle) || null;
+
+    // Always fetch fresh locations instead of relying on stale in-memory locs
+    const freshLocs = await window.api.locationsList();
+    locs = Array.isArray(freshLocs) ? freshLocs : [];
+
+    return (
+      locs.find(
+        (l) => String(l.code || "").trim().toLowerCase() === needle
+      ) || null
+    );
   }
 
   function findItemByScan(raw) {
     const needle = String(raw || "").trim().toLowerCase();
     if (!needle) return null;
 
-    const byBarcode = items.find((i) => String(i.barcode ?? "").trim().toLowerCase() === needle);
-    if (byBarcode) return byBarcode;
+    // Match house barcode
+    const byHouse = items.find(
+      (i) => String(i.barcode ?? "").trim().toLowerCase() === needle
+    );
+    if (byHouse) return byHouse;
 
-    const bySku = items.find((i) => String(i.sku ?? "").trim().toLowerCase() === needle);
+    // Match vendor barcode
+    const byVendor = items.find(
+      (i) => String(i.vendor_barcode ?? "").trim().toLowerCase() === needle
+    );
+    if (byVendor) return byVendor;
+
+    // Match SKU
+    const bySku = items.find(
+      (i) => String(i.sku ?? "").trim().toLowerCase() === needle
+    );
     if (bySku) return bySku;
 
     return null;
@@ -485,13 +506,13 @@ export async function mountReceive() {
   });
 
   // Location scan commit
-  locationScanInput?.addEventListener("keydown", (e) => {
+  locationScanInput?.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
 
     setErr(locationScanError, "");
     const raw = locationScanInput.value;
-    const hit = findLocationByCode(raw);
+    const hit = await findLocationByCode(raw);
 
     if (!hit) {
       setErr(locationScanError, `Location not found: "${raw}"`);
@@ -530,7 +551,11 @@ export async function mountReceive() {
     const raw = itemScanInput.value;
     const qty = getQtyForThisScan();
 
-    const hit = findItemByScan(raw);
+    let hit = findItemByScan(raw);
+
+    if (!hit) {
+      hit = await window.api.itemsFindByBarcode(raw);
+    }
 
     if (!hit) {
       // NEW: try alias-table lookup (barcode -> existing item) before Smart Add
@@ -629,11 +654,18 @@ export async function mountReceive() {
   btnSmartAddSave?.addEventListener("click", async () => {
     setErr(smartAddStatus, "");
 
-    const barcode = String(smartAddBarcode.value || "").trim();
+    const vendorBarcode = String(smartAddBarcode.value || "").trim();
+
+    // Generate unique house barcode (internal)
+    const houseBarcode =
+      "HB-" +
+      Date.now().toString(36) +
+      "-" +
+      Math.random().toString(36).slice(2, 6).toUpperCase();
     const sku = String(smartAddSku.value || "").trim();
     const description = String(smartAddDescription.value || "").trim();
 
-    if (!barcode) return setErr(smartAddStatus, "Barcode is required.");
+    if (!vendorBarcode) return setErr(smartAddStatus, "Vendor Barcode is required.");
     if (!sku) return setErr(smartAddStatus, "SKU is required.");
     if (!description) return setErr(smartAddStatus, "Description is required.");
 
@@ -646,7 +678,8 @@ export async function mountReceive() {
         category: String(smartAddCategory.value || "").trim(),
         unit: String(smartAddUnit.value || "EA").trim() || "EA",
         vendor: String(smartAddVendor.value || "").trim(),
-        barcode,
+        barcode: houseBarcode,          // internal label
+        vendor_barcode: vendorBarcode,  // original scanned UPC
         reorder_point: toNum(smartAddReorderPoint.value, 0),
         reorder_qty: toNum(smartAddReorderQty.value, 0),
         default_cost: toNum(smartAddDefaultCost.value, 0),
@@ -661,9 +694,24 @@ export async function mountReceive() {
         created && created.id
           ? created
           : items.find((i) => String(i.sku || "").toLowerCase() === sku.toLowerCase()) ||
-          items.find((i) => String(i.barcode || "").toLowerCase() === barcode.toLowerCase());
+          items.find((i) => String(i.barcode || "").toLowerCase() === houseBarcode.toLowerCase());
 
       if (!createdItem) throw new Error("Item created, but could not re-load it.");
+
+      // Insert barcode aliases
+      await window.api.itemsAttachBarcode({
+        item_id: createdItem.id,
+        barcode: houseBarcode,
+        source: "house"
+      });
+
+      await window.api.itemsAttachBarcode({
+        item_id: createdItem.id,
+        barcode: vendorBarcode,
+        source: "vendor"
+      });
+
+      console.log("Attached vendor barcode:", vendorBarcode);
 
       // Auto-add to receive batch
       addScan(createdItem, smartAddPendingQty);
@@ -672,7 +720,7 @@ export async function mountReceive() {
       if (smartAddPrintLabel?.checked) {
         printHouseLabel2x1({
           type: String(smartAddBarcodeType.value || "qr"),
-          value: barcode,
+          value: houseBarcode,
           sku,
           description,
         });
@@ -746,4 +794,9 @@ export async function mountReceive() {
   setActiveLocation(null);
   setStatus("Ready: scan a location");
   focusSelect(locationScanInput);
+
+  // Refresh data when bulk import or other pages change data
+  window.addEventListener("data:changed", async () => {
+    await loadData();
+  });
 }
