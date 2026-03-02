@@ -412,22 +412,15 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
-  async function printHouseLabel2x1({ type, value, sku, description }) {
-    try {
-      const pngDataUrl = await window.api.labelRenderBarcodePng({
-        type,
-        text: value
-      });
+  function printHouseLabel2x1({ type, value, sku, description }) {
+    const safeSku = String(sku || "");
+    const safeDesc = String(description || "");
+    const safeVal = String(value || "");
 
-      if (!pngDataUrl) return;
+    const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
+    if (!w) return;
 
-      const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
-      if (!w) return;
-
-      const safeSku = esc(sku || "");
-      const safeDesc = esc(description || "");
-
-      w.document.write(`<!doctype html>
+    w.document.write(`<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -447,8 +440,7 @@ export async function mountReceive() {
   }
   .sku { font-weight:900; font-size:14px; }
   .desc { font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .barcode { text-align:center; }
-  img { max-width:100%; height:40px; }
+  .code { font-size:10px; }
 </style>
 </head>
 <body>
@@ -457,8 +449,8 @@ export async function mountReceive() {
       <div class="sku">${safeSku}</div>
       <div class="desc">${safeDesc}</div>
     </div>
-    <div class="barcode">
-      <img src="${pngDataUrl}" />
+    <div class="code">
+      ${safeVal}
     </div>
   </div>
 <script>
@@ -470,10 +462,7 @@ export async function mountReceive() {
 </body>
 </html>`);
 
-      w.document.close();
-    } catch (err) {
-      console.error("Label print failed:", err);
-    }
+    w.document.close();
   }
 
   // ---------- load ----------
