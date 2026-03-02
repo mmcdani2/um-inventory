@@ -412,27 +412,22 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
-  function printHouseLabel2x1({ type, value, sku, description }) {
-    // NOTE: This is NOT a PDF generator (no deps). It opens a print window sized via CSS @page.
-    // It’s stable enough for v1 on cheap printers if scaling is set to 100%.
-    const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
-    if (!w) return;
+  async function printHouseLabel2x1({ type, value, sku, description }) {
+    try {
+      const pngDataUrl = await window.api.labelRenderBarcodePng({
+        type,
+        text: value
+      });
 
-    const safeSku = esc(sku || "");
-    const safeDesc = esc(description || "");
-    const safeVal = esc(value || "");
+      if (!pngDataUrl) return;
 
-    // Barcode rendering: v1 uses QR only (built-in via simple SVG fallback is not available without libs).
-    // For Code128 we print human-readable value and rely on later backend/native print support.
-    // This keeps flow working NOW; we can upgrade rendering later with a tiny lib.
-    const codeHtml =
-      type === "qr"
-        ? `<div style="font-size:12px; margin-bottom:6px;">QR: ${safeVal}</div>
-           <div style="font-size:11px; opacity:.9;">(QR rendering will be added next step)</div>`
-        : `<div style="font-size:12px; margin-bottom:6px;">CODE128: ${safeVal}</div>
-           <div style="font-size:11px; opacity:.9;">(Code128 rendering will be added next step)</div>`;
+      const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
+      if (!w) return;
 
-    w.document.write(`<!doctype html>
+      const safeSku = esc(sku || "");
+      const safeDesc = esc(description || "");
+
+      w.document.write(`<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -441,10 +436,19 @@ export async function mountReceive() {
   @page { size: 2in 1in; margin: 0; }
   html, body { width: 2in; height: 1in; margin:0; padding:0; }
   body { font-family: Arial, sans-serif; }
-  .wrap { box-sizing:border-box; width:2in; height:1in; padding:8px; display:flex; flex-direction:column; justify-content:space-between; }
-  .sku { font-weight:900; font-size:14px; line-height:1.1; }
-  .desc { font-size:10px; line-height:1.1; opacity:.95; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .code { font-size:10px; line-height:1.1; }
+  .wrap {
+    box-sizing:border-box;
+    width:2in;
+    height:1in;
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .sku { font-weight:900; font-size:14px; }
+  .desc { font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .barcode { text-align:center; }
+  img { max-width:100%; height:40px; }
 </style>
 </head>
 <body>
@@ -453,16 +457,23 @@ export async function mountReceive() {
       <div class="sku">${safeSku}</div>
       <div class="desc">${safeDesc}</div>
     </div>
-    <div class="code">
-      ${codeHtml}
+    <div class="barcode">
+      <img src="${pngDataUrl}" />
     </div>
   </div>
 <script>
-  window.onload = () => { window.focus(); window.print(); };
+  window.onload = () => {
+    window.focus();
+    window.print();
+  };
 </script>
 </body>
 </html>`);
-    w.document.close();
+
+      w.document.close();
+    } catch (err) {
+      console.error("Label print failed:", err);
+    }
   }
 
   // ---------- load ----------
