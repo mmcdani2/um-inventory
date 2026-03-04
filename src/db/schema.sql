@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS item_barcodes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   item_id INTEGER NOT NULL,
   barcode TEXT NOT NULL UNIQUE,
-  source TEXT NOT NULL DEFAULT '',        -- 'vendor', 'house', 'upcitemdb', etc.
+  kind TEXT NOT NULL DEFAULT 'vendor_upc' CHECK (kind IN ('house','vendor_upc','alt')),
+  source TEXT NOT NULL DEFAULT '',        -- free-text provenance: 'remichel', 'upcitemdb', etc.
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 );

@@ -212,6 +212,62 @@ app.whenReady().then(() => {
     return `data:image/png;base64,${png.toString("base64")}`;
   });
 
+  ipcMain.handle("print:label2x1", async (_evt, { type = "qrcode", text, sku = "", description = "" }) => {
+    const t = String(text || "").trim();
+    if (!t) throw new Error("Print text required.");
+
+    const bcid = String(type).toLowerCase() === "code128" ? "code128" : "qrcode";
+    const png = await bwipjs.toBuffer({ bcid, text: t, scale: 3, includetext: false, padding: 0 });
+    const dataUrl = `data:image/png;base64,${png.toString("base64")}`;
+
+    const labelHtml = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Label</title>
+<style>
+  @page { size: 2in 1in; margin: 0; }
+  html, body { width: 2in; height: 1in; margin:0; padding:0; }
+  body { font-family: Arial, sans-serif; }
+  .wrap { box-sizing:border-box; width:2in; height:1in; padding:8px; display:flex; flex-direction:column; justify-content:space-between; }
+  .sku { font-weight:900; font-size:14px; line-height:1.1; }
+  .desc { font-size:10px; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  img { width: 100%; height: 42px; object-fit: contain; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div>
+      <div class="sku">${String(sku).replace(/</g, "&lt;")}</div>
+      <div class="desc">${String(description).replace(/</g, "&lt;")}</div>
+    </div>
+    <div><img src="${dataUrl}"></div>
+  </div>
+</body>
+</html>`;
+
+    const printWin = new BrowserWindow({
+      show: false,
+      webPreferences: { contextIsolation: true, sandbox: false },
+    });
+
+    await printWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(labelHtml));
+
+    await new Promise((resolve, reject) => {
+      printWin.webContents.print({ silent: false, printBackground: true }, (success, err) => {
+        if (success) return resolve({ canceled: false });
+
+        const msg = String(err || "Print failed");
+        if (msg.toLowerCase().includes("canceled")) return resolve({ canceled: true });
+
+        reject(new Error(msg));
+      });
+    });
+
+    printWin.close();
+    return true;
+  });
+
   createWindow();
 
   app.on("activate", () => {

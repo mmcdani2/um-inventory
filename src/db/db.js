@@ -77,6 +77,125 @@ function ensureSchema(db, schemaFilePath) {
       "schema_version",
     );
   }
+
+  // Migration v3 -> v4: enforce cross-table barcode uniqueness + block blank alias barcodes
+  const cur3 = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 3,
+  );
+
+  if (cur3 < 4) {
+    db.exec(`
+    -- House barcode (items.barcode) cannot collide with any alias barcode
+    CREATE TRIGGER IF NOT EXISTS trg_items_barcode_no_alias_ins
+    BEFORE INSERT ON items
+    WHEN NEW.barcode IS NOT NULL AND TRIM(NEW.barcode) <> ''
+    BEGIN
+      SELECT CASE
+        WHEN EXISTS (SELECT 1 FROM item_barcodes WHERE barcode = NEW.barcode)
+        THEN RAISE(ABORT, 'barcode already exists in item_barcodes')
+      END;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_items_barcode_no_alias_upd
+    BEFORE UPDATE OF barcode ON items
+    WHEN NEW.barcode IS NOT NULL AND TRIM(NEW.barcode) <> '' AND NEW.barcode <> OLD.barcode
+    BEGIN
+      SELECT CASE
+        WHEN EXISTS (SELECT 1 FROM item_barcodes WHERE barcode = NEW.barcode)
+        THEN RAISE(ABORT, 'barcode already exists in item_barcodes')
+      END;
+    END;
+
+    -- Alias barcode cannot collide with any house barcode (items.barcode)
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_no_items_ins
+    BEFORE INSERT ON item_barcodes
+    BEGIN
+      SELECT CASE
+        WHEN TRIM(NEW.barcode) = ''
+        THEN RAISE(ABORT, 'blank barcode not allowed')
+      END;
+
+      SELECT CASE
+        WHEN EXISTS (
+          SELECT 1 FROM items
+          WHERE barcode IS NOT NULL AND TRIM(barcode) <> '' AND barcode = NEW.barcode
+        )
+        THEN RAISE(ABORT, 'barcode already exists in items.barcode')
+      END;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_no_items_upd
+    BEFORE UPDATE OF barcode ON item_barcodes
+    WHEN NEW.barcode <> OLD.barcode
+    BEGIN
+      SELECT CASE
+        WHEN TRIM(NEW.barcode) = ''
+        THEN RAISE(ABORT, 'blank barcode not allowed')
+      END;
+
+      SELECT CASE
+        WHEN EXISTS (
+          SELECT 1 FROM items
+          WHERE barcode IS NOT NULL AND TRIM(barcode) <> '' AND barcode = NEW.barcode
+        )
+        THEN RAISE(ABORT, 'barcode already exists in items.barcode')
+      END;
+    END;
+  `);
+
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("4", "schema_version");
+  }
+
+  // Migration v4 -> v5: add item_barcodes.kind + enforce allowed values (and block 'house' in aliases)
+  const cur4 = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 4,
+  );
+
+  if (cur4 < 5) {
+    // add column if missing
+    const cols = db.prepare("PRAGMA table_info(item_barcodes)").all();
+    const hasKind = cols.some((c) => c.name === "kind");
+    if (!hasKind) {
+      db.exec(`ALTER TABLE item_barcodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'vendor_upc';`);
+    }
+
+    // enforce allowed kinds + prevent 'house' kind in alias table
+    db.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_kind_ins
+    BEFORE INSERT ON item_barcodes
+    BEGIN
+      SELECT CASE
+        WHEN NEW.kind NOT IN ('house','vendor_upc','alt')
+        THEN RAISE(ABORT, 'invalid item_barcodes.kind')
+      END;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_kind_upd
+    BEFORE UPDATE OF kind ON item_barcodes
+    BEGIN
+      SELECT CASE
+        WHEN NEW.kind NOT IN ('house','vendor_upc','alt')
+        THEN RAISE(ABORT, 'invalid item_barcodes.kind')
+      END;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_block_house_ins
+    BEFORE INSERT ON item_barcodes
+    WHEN NEW.kind = 'house'
+    BEGIN
+      SELECT RAISE(ABORT, 'house barcode must live in items.barcode');
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_item_barcodes_block_house_upd
+    BEFORE UPDATE OF kind ON item_barcodes
+    WHEN NEW.kind = 'house'
+    BEGIN
+      SELECT RAISE(ABORT, 'house barcode must live in items.barcode');
+    END;
+  `);
+
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("5", "schema_version");
+  }
 }
 
 function getMeta(db) {
@@ -141,22 +260,28 @@ function findItemByBarcode(db, barcodeRaw) {
   );
 }
 
-function attachBarcodeToItem(db, { item_id, barcode, source = "house" }) {
+function attachBarcodeToItem(db, { item_id, barcode, kind, source = "vendor" }) {
   const itemId = Number(item_id);
   const bc = String(barcode || "").trim();
   const src = String(source || "").trim();
 
-  if (!Number.isFinite(itemId) || itemId <= 0)
-    throw new Error("Invalid item_id.");
+  // default kind (future-proof)
+  let k = String(kind || "").trim();
+  if (!k) {
+    // infer from source if caller is old
+    k = src === "house" ? "alt" : "vendor_upc";
+  }
+
+  if (!Number.isFinite(itemId) || itemId <= 0) throw new Error("Invalid item_id.");
   if (!bc) throw new Error("Barcode is required.");
 
   try {
     db.prepare(
       `
-      INSERT INTO item_barcodes (item_id, barcode, source)
-      VALUES (?, ?, ?)
+      INSERT INTO item_barcodes (item_id, barcode, kind, source)
+      VALUES (?, ?, ?, ?)
     `,
-    ).run(itemId, bc, src);
+    ).run(itemId, bc, k, src);
 
     return { ok: true };
   } catch (e) {

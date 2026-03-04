@@ -93,4 +93,5 @@ contextBridge.exposeInMainWorld("api", {
   locationsImportCsv: (payload) =>
     ipcRenderer.invoke("locations:importCsv", payload),
   labelRenderBarcodePng: (payload) => ipcRenderer.invoke("label:renderBarcodePng", payload),
+  printLabel2x1: (payload) => ipcRenderer.invoke("print:label2x1", payload),
 });

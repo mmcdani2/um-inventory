@@ -63,6 +63,13 @@ export async function mountReceive() {
   const smartAddPrintLabel = document.getElementById("smartAddPrintLabel");
   const smartAddStatus = document.getElementById("smartAddStatus");
 
+  // Smart Add attach-to-existing
+  const smartAddModeCreate = document.getElementById("smartAddModeCreate");
+  const smartAddModeAttach = document.getElementById("smartAddModeAttach");
+  const smartAddAttachWrap = document.getElementById("smartAddAttachWrap");
+  const smartAddAttachSearch = document.getElementById("smartAddAttachSearch");
+  const smartAddAttachSelect = document.getElementById("smartAddAttachSelect");
+
   // ---------- state ----------
   let locs = [];
   let items = [];
@@ -76,6 +83,7 @@ export async function mountReceive() {
 
   // Smart Add context
   let smartAddPendingQty = 1;
+  let smartAddSuggestedQuery = "";
 
   // ---------- helpers ----------
   const esc = (s) =>
@@ -117,8 +125,11 @@ export async function mountReceive() {
   }
 
   function getQtyForThisScan() {
-    const useOverride = !!qtyOverrideEnabled?.checked;
-    const qty = useOverride ? toNum(qtyOverrideInput.value, 1) : 1;
+    if (!qtyOverrideEnabled?.checked) return 1;
+
+    const raw = String(qtyOverrideInput.value ?? "").trim();
+    const qty = Number.parseFloat(raw);
+
     return Number.isFinite(qty) && qty > 0 ? qty : 1;
   }
 
@@ -131,8 +142,6 @@ export async function mountReceive() {
   }
 
   function bannerTint(isSet) {
-    // Use theme tokens via CSS vars if present; fallback to safe RGBA.
-    // We apply inline style (no page CSS).
     if (!activeLocationBanner) return;
 
     if (!isSet) {
@@ -169,7 +178,7 @@ export async function mountReceive() {
 
   function syncFinalizeEnabled() {
     const hasLines = linesByItemId.size > 0;
-    btnUndoLast.disabled = undoStack.length === 0;
+    if (btnUndoLast) btnUndoLast.disabled = undoStack.length === 0;
     btnClearBatch.disabled = !hasLines;
     btnFinalizeReceive.disabled = !(activeLoc && hasLines) || smartAddIsOpen();
   }
@@ -192,7 +201,7 @@ export async function mountReceive() {
               <div class="msg" style="margin-top:4px;">${esc(ln.description)}</div>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
-              <div class="mono" style="font-weight:900; font-size:16px;">${Number(ln.qty || 0)}</div>
+              <div class="mono" style="font-weight:900; font-size:16px;">${Number(ln.qty || 0).toFixed(2)}</div>
               <button class="btn" type="button" data-remove="${ln.item_id}">Remove</button>
             </div>
           </div>
@@ -213,28 +222,18 @@ export async function mountReceive() {
     const freshLocs = await window.api.locationsList();
     locs = Array.isArray(freshLocs) ? freshLocs : [];
 
-    return (
-      locs.find(
-        (l) => String(l.code || "").trim().toLowerCase() === needle
-      ) || null
-    );
+    return locs.find((l) => String(l.code || "").trim().toLowerCase() === needle) || null;
   }
 
   function findItemByScan(raw) {
     const needle = String(raw || "").trim().toLowerCase();
     if (!needle) return null;
 
-    // Match house barcode
+    // Match house barcode stored on items table
     const byHouse = items.find(
       (i) => String(i.barcode ?? "").trim().toLowerCase() === needle
     );
     if (byHouse) return byHouse;
-
-    // Match vendor barcode
-    const byVendor = items.find(
-      (i) => String(i.vendor_barcode ?? "").trim().toLowerCase() === needle
-    );
-    if (byVendor) return byVendor;
 
     // Match SKU
     const bySku = items.find(
@@ -246,7 +245,10 @@ export async function mountReceive() {
   }
 
   function addScan(item, qtyToAdd) {
-    const delta = Math.max(1, Number(qtyToAdd || 1));
+    const deltaRaw = qtyToAdd ?? 1;
+    const delta = Number.parseFloat(String(deltaRaw).trim());
+    if (!Number.isFinite(delta) || delta <= 0) return;
+
     const key = Number(item.id);
 
     const existing = linesByItemId.get(key);
@@ -295,8 +297,7 @@ export async function mountReceive() {
   function openLocationChangePrompt(nextLoc) {
     pendingLoc = nextLoc;
     locationChangeModal.hidden = false;
-    // Pull focus off scanners to prevent accidental scans while prompt is up
-    btnLocationChangeClear?.focus();
+    btnLocationChangeCancel?.focus();
     syncFinalizeEnabled();
   }
 
@@ -310,36 +311,81 @@ export async function mountReceive() {
     return smartAddWrap && !smartAddWrap.hidden;
   }
 
+  function smartAddMode() {
+    return smartAddModeAttach?.checked ? "attach" : "create";
+  }
+
+  function syncSmartAddModeUi() {
+    const mode = smartAddMode();
+    if (smartAddAttachWrap) smartAddAttachWrap.hidden = mode !== "attach";
+    if (smartAddPrintLabel) smartAddPrintLabel.disabled = mode !== "create";
+    if (smartAddBarcodeType) smartAddBarcodeType.disabled = mode !== "create";
+  }
+
+  function buildSmartAddSuggestions(queryRaw) {
+    const q = String(queryRaw || "").trim().toLowerCase();
+    if (!q) return [];
+
+    const scoreItem = (it) => {
+      const sku = String(it.sku || "").toLowerCase();
+      const desc = String(it.description || "").toLowerCase();
+      let s = 0;
+      if (sku === q) s += 100;
+      if (desc === q) s += 80;
+      if (sku.includes(q)) s += 50;
+      if (desc.includes(q)) s += 35;
+      const toks = q.split(/\s+/).filter(Boolean);
+      for (const t of toks) {
+        if (sku.includes(t)) s += 8;
+        if (desc.includes(t)) s += 5;
+      }
+      return s;
+    };
+
+    return items
+      .map((it) => ({ it, s: scoreItem(it) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s)
+      .slice(0, 12)
+      .map((x) => x.it);
+  }
+
+  function renderSmartAddSuggestions(queryRaw) {
+    if (!smartAddAttachSelect) return;
+    const suggestions = buildSmartAddSuggestions(queryRaw);
+    smartAddAttachSelect.innerHTML = suggestions
+      .map((it) => {
+        const sku = esc(it.sku);
+        const desc = esc(it.description);
+        return `<option value="${Number(it.id)}">${sku} — ${desc}</option>`;
+      })
+      .join("");
+  }
+
   function guessItemFromBarcode(barcodeRaw) {
     const b = String(barcodeRaw || "").trim();
     const digitsOnly = /^[0-9]+$/.test(b);
     const len = b.length;
 
-    // SKU: stable + unique enough (barcode itself). Prefix by type if it looks like UPC/EAN.
-    const skuPrefix = digitsOnly
-      ? (len === 12 ? "UPC" : len === 13 ? "EAN" : "BC")
-      : "BC";
-
+    const skuPrefix = digitsOnly ? (len === 12 ? "UPC" : len === 13 ? "EAN" : "BC") : "BC";
     const sku = `${skuPrefix}-${b}`;
 
-    // Description/category: safe placeholders that keep flow moving.
     const description =
       digitsOnly && len === 12 ? `New item (UPC ${b})` :
         digitsOnly && len === 13 ? `New item (EAN ${b})` :
           `New item (${b})`;
 
-    const category = "Uncategorized";
-
-    return { sku, description, category };
+    return { sku, description, category: "Uncategorized" };
   }
 
   async function openSmartAdd(barcodeValue, qtyToAdd) {
-    smartAddPendingQty = Math.max(1, Number(qtyToAdd || 1));
+    smartAddPendingQty = Math.max(0, Number.parseFloat(qtyToAdd ?? 1));
+    if (!Number.isFinite(smartAddPendingQty) || smartAddPendingQty <= 0) smartAddPendingQty = 1;
 
     setErr(smartAddStatus, "");
     smartAddWrap.hidden = false;
+    if (btnSmartAddSave) btnSmartAddSave.disabled = false;
 
-    // Prefill
     smartAddBarcode.value = String(barcodeValue || "").trim();
 
     const guess = guessItemFromBarcode(smartAddBarcode.value);
@@ -354,34 +400,29 @@ export async function mountReceive() {
     if (!smartAddBarcodeType.value) smartAddBarcodeType.value = "qr";
     if (smartAddPrintLabel) smartAddPrintLabel.checked = true;
 
-    // Best-effort online lookup (offline-safe, fail-soft)
     try {
       setErr(smartAddStatus, "Looking up barcode…");
-
       const info = await window.api.barcodeLookup(smartAddBarcode.value);
 
       if (info) {
         if (info.title) smartAddDescription.value = info.title;
-
         if (info.category) {
-          const parts = String(info.category)
-            .split(">")
-            .map((s) => s.trim())
-            .filter(Boolean);
+          const parts = String(info.category).split(">").map((s) => s.trim()).filter(Boolean);
           smartAddCategory.value = parts.length ? parts[parts.length - 1] : String(info.category).trim();
         }
-
         if (info.brand) smartAddVendor.value = info.brand;
-
-        setErr(smartAddStatus, "");
-      } else {
-        setErr(smartAddStatus, "");
       }
+      setErr(smartAddStatus, "");
     } catch {
       setErr(smartAddStatus, "");
     }
 
-    // Disable scanning while modal open
+    // Seed attach suggestions using best-known description
+    smartAddSuggestedQuery = String(smartAddDescription.value || "").trim();
+    if (smartAddAttachSearch) smartAddAttachSearch.value = smartAddSuggestedQuery;
+    renderSmartAddSuggestions(smartAddSuggestedQuery);
+    syncSmartAddModeUi();
+
     itemScanInput.disabled = true;
     locationScanInput.disabled = true;
 
@@ -393,14 +434,13 @@ export async function mountReceive() {
   function closeSmartAdd() {
     smartAddWrap.hidden = true;
 
-    // Re-enable scanning
     locationScanInput.disabled = false;
     itemScanInput.disabled = !activeLoc;
 
     setErr(smartAddStatus, "");
     smartAddPendingQty = 1;
+    smartAddSuggestedQuery = "";
 
-    // Return focus to item scan if possible
     if (activeLoc) focusSelect(itemScanInput);
     else focusSelect(locationScanInput);
 
@@ -412,59 +452,6 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
-  function printHouseLabel2x1({ type, value, sku, description }) {
-    const safeSku = String(sku || "");
-    const safeDesc = String(description || "");
-    const safeVal = String(value || "");
-
-    const w = window.open("", "_blank", "noopener,noreferrer,width=500,height=400");
-    if (!w) return;
-
-    w.document.write(`<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>Label</title>
-<style>
-  @page { size: 2in 1in; margin: 0; }
-  html, body { width: 2in; height: 1in; margin:0; padding:0; }
-  body { font-family: Arial, sans-serif; }
-  .wrap {
-    box-sizing:border-box;
-    width:2in;
-    height:1in;
-    padding:8px;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-  }
-  .sku { font-weight:900; font-size:14px; }
-  .desc { font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .code { font-size:10px; }
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <div>
-      <div class="sku">${safeSku}</div>
-      <div class="desc">${safeDesc}</div>
-    </div>
-    <div class="code">
-      ${safeVal}
-    </div>
-  </div>
-<script>
-  window.onload = () => {
-    window.focus();
-    window.print();
-  };
-</script>
-</body>
-</html>`);
-
-    w.document.close();
-  }
-
   // ---------- load ----------
   async function loadData() {
     const [locRes, itemRes] = await Promise.all([window.api.locationsList(), window.api.itemsList()]);
@@ -473,7 +460,6 @@ export async function mountReceive() {
   }
 
   // ---------- events ----------
-  // Select-all focus behavior
   [
     locationScanInput,
     itemScanInput,
@@ -493,9 +479,7 @@ export async function mountReceive() {
     smartAddReorderQty,
   ].forEach((el) => {
     el?.addEventListener("focus", () => {
-      try {
-        el.select();
-      } catch { }
+      try { el.select(); } catch { }
     });
   });
 
@@ -505,7 +489,6 @@ export async function mountReceive() {
     else focusSelect(itemScanInput);
   });
 
-  // Location scan commit
   locationScanInput?.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -521,7 +504,6 @@ export async function mountReceive() {
       return;
     }
 
-    // safety if batch has lines and location changes
     const hasLines = linesByItemId.size > 0;
     if (activeLoc && hasLines && hit.id !== activeLoc.id) {
       openLocationChangePrompt(hit);
@@ -534,7 +516,6 @@ export async function mountReceive() {
     locationScanInput.value = "";
   });
 
-  // Item scan commit
   itemScanInput?.addEventListener("keydown", async (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -552,26 +533,9 @@ export async function mountReceive() {
     const qty = getQtyForThisScan();
 
     let hit = findItemByScan(raw);
+    if (!hit) hit = await window.api.itemsFindByBarcode(raw);
 
     if (!hit) {
-      hit = await window.api.itemsFindByBarcode(raw);
-    }
-
-    if (!hit) {
-      // NEW: try alias-table lookup (barcode -> existing item) before Smart Add
-      try {
-        const byAlias = await window.api.itemsFindByBarcode(raw);
-        if (byAlias) {
-          addScan(byAlias, qty);
-          itemScanInput.value = "";
-          focusSelect(itemScanInput);
-          return;
-        }
-      } catch {
-        // fail-soft, fall through to Smart Add
-      }
-
-      // Smart Add flow
       void openSmartAdd(raw, qty);
       itemScanInput.value = "";
       return;
@@ -582,15 +546,15 @@ export async function mountReceive() {
     focusSelect(itemScanInput);
   });
 
-  // Banner controls
   btnClearLocation?.addEventListener("click", () => {
     if (smartAddIsOpen()) return;
 
+    // Don’t clear batch from here. Clear batch in ONE place only.
     if (linesByItemId.size > 0) {
-      // fast safety
-      const ok = confirm("Clear active location and discard current batch lines?");
-      if (!ok) return;
-      clearBatch();
+      setErr(locationScanError, "Clear the batch before clearing/changing location.");
+      setStatus("Batch has lines — clear batch first.");
+      try { btnClearBatch?.focus(); } catch { }
+      return;
     }
 
     setActiveLocation(null);
@@ -599,27 +563,16 @@ export async function mountReceive() {
     setStatus("Cleared: scan a location to continue");
   });
 
-  // "Change" just focuses location scan
   btnChangeLocation?.addEventListener("click", () => {
     if (smartAddIsOpen()) return;
     focusSelect(locationScanInput);
   });
 
-  // Location change prompt
   btnLocationChangeCancel?.addEventListener("click", () => {
     closeLocationChangePrompt();
     focusSelect(itemScanInput);
   });
 
-  btnLocationChangeClear?.addEventListener("click", () => {
-    if (!pendingLoc) return;
-    clearBatch();
-    setActiveLocation(pendingLoc);
-    setStatus(`OK: location changed → ${pendingLoc.code} (batch cleared)`);
-    closeLocationChangePrompt();
-  });
-
-  // List remove
   receiveLinesList?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-remove]");
     if (!btn) return;
@@ -633,7 +586,6 @@ export async function mountReceive() {
     focusSelect(itemScanInput);
   });
 
-  // Undo / clear batch
   btnUndoLast?.addEventListener("click", undoLast);
 
   btnClearBatch?.addEventListener("click", () => {
@@ -646,40 +598,104 @@ export async function mountReceive() {
     focusSelect(itemScanInput);
   });
 
-  // Smart Add cancel/save
-  btnSmartAddCancel?.addEventListener("click", () => {
-    closeSmartAdd();
+  btnSmartAddCancel?.addEventListener("click", closeSmartAdd);
+
+  smartAddModeCreate?.addEventListener("change", () => {
+    syncSmartAddModeUi();
+    focusSelect(smartAddSku);
+  });
+
+  smartAddModeAttach?.addEventListener("change", () => {
+    syncSmartAddModeUi();
+    focusSelect(smartAddAttachSearch);
+  });
+
+  smartAddAttachSearch?.addEventListener("input", (e) => {
+    const q = e?.target?.value;
+    renderSmartAddSuggestions(q);
   });
 
   btnSmartAddSave?.addEventListener("click", async () => {
+    if (btnSmartAddSave.disabled) return;       // ✅ guard against double-submit
+    btnSmartAddSave.disabled = true;            // ✅ disable immediately
+
     setErr(smartAddStatus, "");
 
     const vendorBarcode = String(smartAddBarcode.value || "").trim();
 
-    // Generate unique house barcode (internal)
     const houseBarcode =
       "HB-" +
       Date.now().toString(36) +
       "-" +
       Math.random().toString(36).slice(2, 6).toUpperCase();
+
     const sku = String(smartAddSku.value || "").trim();
     const description = String(smartAddDescription.value || "").trim();
 
-    if (!vendorBarcode) return setErr(smartAddStatus, "Vendor Barcode is required.");
-    if (!sku) return setErr(smartAddStatus, "SKU is required.");
-    if (!description) return setErr(smartAddStatus, "Description is required.");
-
-    btnSmartAddSave.disabled = true;
-
     try {
+      if (!vendorBarcode) {
+        setErr(smartAddStatus, "Barcode is required.");
+        return;
+      }
+
+      // Attach mode: require selection; SKU/Description not required.
+      if (smartAddMode() === "attach") {
+        const selId = Number(smartAddAttachSelect?.value);
+        if (!selId) {
+          setErr(smartAddStatus, "Select an item to attach this barcode to.");
+          return;
+        }
+      } else {
+        if (!sku) {
+          setErr(smartAddStatus, "SKU is required.");
+          return;
+        }
+        if (!description) {
+          setErr(smartAddStatus, "Description is required.");
+          return;
+        }
+      }
+
+      // If barcode already exists, force attach-to-existing instead of creating a dupe.
+      const existing = await window.api.itemsFindByBarcode(vendorBarcode);
+      if (existing && existing.id) {
+        if (smartAddModeAttach) smartAddModeAttach.checked = true;
+        syncSmartAddModeUi();
+        if (smartAddAttachSearch) {
+          smartAddAttachSearch.value = String(existing.sku || "");
+          renderSmartAddSuggestions(smartAddAttachSearch.value);
+        }
+        if (smartAddAttachSelect) smartAddAttachSelect.value = String(existing.id);
+
+        setErr(
+          smartAddStatus,
+          `Barcode already linked to ${existing.sku}. Select item and Save to attach/add to batch.`,
+        );
+
+        btnSmartAddSave.disabled = false; // ✅ re-enable because we're staying in the modal
+        return;
+      }
+
+      if (smartAddMode() === "attach") {
+        const targetId = Number(smartAddAttachSelect.value);
+        const target = items.find((i) => Number(i.id) === targetId);
+        if (!target) throw new Error("Selected item not found. Refresh and try again.");
+
+        await window.api.itemsAttachBarcode({ item_id: targetId, barcode: vendorBarcode, source: "vendor" });
+        await refreshItems();
+        addScan(target, smartAddPendingQty);
+        closeSmartAdd();
+        window.dispatchEvent(new CustomEvent("data:changed"));
+        return;
+      }
+
       const itemPayload = {
         sku,
         description,
         category: String(smartAddCategory.value || "").trim(),
         unit: String(smartAddUnit.value || "EA").trim() || "EA",
         vendor: String(smartAddVendor.value || "").trim(),
-        barcode: houseBarcode,          // internal label
-        vendor_barcode: vendorBarcode,  // original scanned UPC
+        barcode: houseBarcode,
         reorder_point: toNum(smartAddReorderPoint.value, 0),
         reorder_qty: toNum(smartAddReorderQty.value, 0),
         default_cost: toNum(smartAddDefaultCost.value, 0),
@@ -689,7 +705,6 @@ export async function mountReceive() {
       const created = await window.api.itemsCreate(itemPayload);
       await refreshItems();
 
-      // Find created item (prefer returned object)
       const createdItem =
         created && created.id
           ? created
@@ -698,45 +713,33 @@ export async function mountReceive() {
 
       if (!createdItem) throw new Error("Item created, but could not re-load it.");
 
-      // Insert barcode aliases
-      await window.api.itemsAttachBarcode({
-        item_id: createdItem.id,
-        barcode: houseBarcode,
-        source: "house"
-      });
+      await window.api.itemsAttachBarcode({ item_id: createdItem.id, barcode: vendorBarcode, source: "vendor" });
 
-      await window.api.itemsAttachBarcode({
-        item_id: createdItem.id,
-        barcode: vendorBarcode,
-        source: "vendor"
-      });
-
-      console.log("Attached vendor barcode:", vendorBarcode);
-
-      // Auto-add to receive batch
       addScan(createdItem, smartAddPendingQty);
 
-      // Optional print
       if (smartAddPrintLabel?.checked) {
-        printHouseLabel2x1({
-          type: String(smartAddBarcodeType.value || "qr"),
-          value: houseBarcode,
-          sku,
-          description,
-        });
+        try {
+          await window.api.printLabel2x1({
+            type: String(smartAddBarcodeType.value || "qrcode"),
+            text: houseBarcode,
+            sku,
+            description,
+          });
+        } catch (e) {
+          const msg = String(e?.message || "");
+          if (!msg.toLowerCase().includes("canceled")) throw e;
+        }
       }
 
-      // Close and return to scan loop
       closeSmartAdd();
       window.dispatchEvent(new CustomEvent("data:changed"));
     } catch (e) {
       setErr(smartAddStatus, e?.message || "Smart Add failed.");
     } finally {
-      btnSmartAddSave.disabled = false;
+      if (smartAddIsOpen()) btnSmartAddSave.disabled = false;
     }
   });
 
-  // Finalize (ONE batch submit)
   btnFinalizeReceive?.addEventListener("click", async () => {
     setErr(itemScanError, "");
     setErr(locationScanError, "");
@@ -775,8 +778,6 @@ export async function mountReceive() {
       clearBatch();
       setStatus(`OK: batch finalized → ${activeLoc.code}`);
       window.dispatchEvent(new CustomEvent("data:changed"));
-
-      // keep location sticky, keep scanning
       focusSelect(itemScanInput);
     } catch (e) {
       setErr(itemScanError, e?.message || "Finalize failed.");
@@ -784,6 +785,13 @@ export async function mountReceive() {
       focusSelect(itemScanInput);
     } finally {
       syncFinalizeEnabled();
+    }
+  });
+
+  window.addEventListener("beforeunload", (e) => {
+    if (linesByItemId.size > 0) {
+      e.preventDefault();
+      e.returnValue = "";
     }
   });
 
@@ -795,7 +803,6 @@ export async function mountReceive() {
   setStatus("Ready: scan a location");
   focusSelect(locationScanInput);
 
-  // Refresh data when bulk import or other pages change data
   window.addEventListener("data:changed", async () => {
     await loadData();
   });
