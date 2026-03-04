@@ -15,6 +15,9 @@ export async function mountReceive() {
   const itemScanInput = document.getElementById("itemScanInput");
   const itemScanError = document.getElementById("itemScanError");
 
+  const scanLocationCard = document.getElementById("locationScanCard");
+  const scanItemCard = document.getElementById("itemScanCard");
+
   const lastScanStatus = document.getElementById("lastScanStatus");
 
   // Qty override
@@ -164,6 +167,7 @@ export async function mountReceive() {
       itemScanInput.disabled = true;
       focusSelect(locationScanInput);
       syncFinalizeEnabled();
+      syncReceivePhaseUi();
       return;
     }
 
@@ -174,6 +178,18 @@ export async function mountReceive() {
     itemScanInput.disabled = false;
     focusSelect(itemScanInput);
     syncFinalizeEnabled();
+    syncReceivePhaseUi();
+  }
+
+  function syncReceivePhaseUi() {
+    const hasLoc = !!activeLoc;
+    const hasLines = linesByItemId.size > 0;
+
+    if (scanLocationCard) scanLocationCard.hidden = hasLoc;
+    if (scanItemCard) scanItemCard.hidden = !hasLoc;
+
+    // tiny change-location allowed only before any lines exist
+    if (btnChangeLocation) btnChangeLocation.hidden = !hasLoc || hasLines;
   }
 
   function syncFinalizeEnabled() {
