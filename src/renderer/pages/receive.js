@@ -39,9 +39,8 @@ export async function mountReceive() {
 
   // Optional details
   const receiveUserInitials = document.getElementById("receiveUserInitials");
-  const receiveVendor = document.getElementById("receiveVendor");
+  const receiveEmployeeId = document.getElementById("receiveEmployeeId");
   const receivePoNumber = document.getElementById("receivePoNumber");
-  const receiveNotes = document.getElementById("receiveNotes");
 
   // Location change safety panel
   const locationChangeModal = document.getElementById("locationChangeModal");
@@ -468,6 +467,20 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
+async function refreshEmployees() {
+  if (!receiveEmployeeId) return;
+  const employees = await window.api.employeesList();
+  receiveEmployeeId.innerHTML = '<option value="">Select…</option>';
+  for (const e of employees) {
+    if (!e || !e.id || e.is_active === 0) continue;
+    const opt = document.createElement("option");
+    opt.value = String(e.id);
+    opt.textContent = e.name;
+    receiveEmployeeId.appendChild(opt);
+  }
+}
+
+
   // ---------- load ----------
   async function loadData() {
     const [locRes, itemRes] = await Promise.all([window.api.locationsList(), window.api.itemsList()]);
@@ -481,9 +494,8 @@ export async function mountReceive() {
     itemScanInput,
     qtyOverrideInput,
     receiveUserInitials,
-    receiveVendor,
+    receiveEmployeeId,
     receivePoNumber,
-    receiveNotes,
     smartAddBarcode,
     smartAddSku,
     smartAddDescription,
@@ -528,6 +540,7 @@ export async function mountReceive() {
     }
 
     setActiveLocation(hit);
+    focusSelect(itemScanInput);   
     setStatus(`OK: location set → ${hit.code}`);
     locationScanInput.value = "";
   });
@@ -699,6 +712,7 @@ export async function mountReceive() {
 
         await window.api.itemsAttachBarcode({ item_id: targetId, barcode: vendorBarcode, source: "vendor" });
         await refreshItems();
+    await refreshEmployees();
         addScan(target, smartAddPendingQty);
         closeSmartAdd();
         window.dispatchEvent(new CustomEvent("data:changed"));
@@ -773,21 +787,26 @@ export async function mountReceive() {
       return focusSelect(itemScanInput);
     }
 
-    btnFinalizeReceive.disabled = true;
+    
+
+const empId = Number(receiveEmployeeId?.value || 0);
+if (!empId) {
+  setErr(itemScanError, "Employee is required.");
+  // open details panel if closed
+  try { document.getElementById("batchDetails").open = true; } catch {}
+  return focusSelect(receiveEmployeeId);
+}
+
+btnFinalizeReceive.disabled = true;
 
     try {
       const payload = {
-        user_initials: String(receiveUserInitials?.value || "").trim(),
-        vendor: String(receiveVendor?.value || "").trim(),
-        po_number: String(receivePoNumber?.value || "").trim(),
-        notes: String(receiveNotes?.value || "").trim(),
-        location_id: activeLoc.id,
-        lines: lines.map((ln) => ({
-          item_id: ln.item_id,
-          qty: Number(ln.qty || 0),
-          unit_cost: toNum(ln.unit_cost, 0),
-        })),
-      };
+  user_initials: String(receiveUserInitials?.value || "").trim(),
+  employee_id: Number(receiveEmployeeId?.value || 0),
+  po_number: String(receivePoNumber?.value || "").trim(),
+  location_id: Number(activeLoc.id),
+  lines,
+};
 
       await window.api.receiveSubmitBatch(payload);
 

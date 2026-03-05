@@ -61,6 +61,12 @@ async function barcodeLookup(upcRaw) {
 }
 
 contextBridge.exposeInMainWorld("api", {
+
+employeesList: () => ipcRenderer.invoke("employees:list"),
+employeesCreate: (payload) => ipcRenderer.invoke("employees:create", payload),
+employeesSetActive: (payload) => ipcRenderer.invoke("employees:setActive", payload),
+
+
   dbGetInfo: () => ipcRenderer.invoke("db:getInfo"),
   itemsList: () => ipcRenderer.invoke("items:list"),
   itemsCreate: (item) => ipcRenderer.invoke("items:create", item),

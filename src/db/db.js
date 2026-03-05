@@ -196,6 +196,32 @@ function ensureSchema(db, schemaFilePath) {
 
     db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("5", "schema_version");
   }
+
+// Migration v5 -> v6: employees table + transactions.employee_id
+const cur5 = Number(
+  db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 5,
+);
+if (cur5 < 6) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS employees (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(is_active);
+  `);
+
+  // add employee_id column if missing
+  const txCols = db.prepare("PRAGMA table_info(transactions)").all();
+  const hasEmployeeId = txCols.some((c) => c.name === "employee_id");
+  if (!hasEmployeeId) {
+    db.exec(`ALTER TABLE transactions ADD COLUMN employee_id INTEGER NOT NULL DEFAULT 0;`);
+  }
+
+  db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("6", "schema_version");
+}
+
 }
 
 function getMeta(db) {
@@ -453,9 +479,8 @@ function receiveItem(db, payload) {
   const user_initials = String(payload.user_initials || "")
     .trim()
     .toUpperCase();
-  const vendor = String(payload.vendor || "").trim();
+  const employee_id = Number(payload.employee_id || 0);
   const po_number = String(payload.po_number || "").trim();
-  const notes = String(payload.notes || "").trim();
 
   const item_id = Number(payload.item_id);
   const location_id = Number(payload.location_id);
@@ -478,7 +503,7 @@ function receiveItem(db, payload) {
       VALUES ('RECEIVE', ?, ?, ?, ?)
     `,
       )
-      .run(user_initials, vendor, po_number, notes);
+      .run(user_initials, employee_id, po_number, "", "");
 
     const txId = txRes.lastInsertRowid;
 
@@ -534,9 +559,8 @@ function receiveBatch(db, payload) {
   const user_initials = String(payload.user_initials || "")
     .trim()
     .toUpperCase();
-  const vendor = String(payload.vendor || "").trim();
+  const employee_id = Number(payload.employee_id || 0);
   const po_number = String(payload.po_number || "").trim();
-  const notes = String(payload.notes || "").trim();
 
   const location_id = Number(payload.location_id);
   const lines = Array.isArray(payload.lines) ? payload.lines : [];
@@ -545,6 +569,7 @@ function receiveBatch(db, payload) {
   if (!Number.isFinite(location_id) || location_id <= 0)
     throw new Error("Location required.");
   if (!lines.length) throw new Error("At least one line is required.");
+  if (!Number.isFinite(employee_id) || employee_id <= 0) throw new Error("Employee required.");
 
   // validate lines up front (fail-fast)
   for (const [idx, ln] of lines.entries()) {
@@ -564,11 +589,11 @@ function receiveBatch(db, payload) {
     const txRes = db
       .prepare(
         `
-        INSERT INTO transactions (type, user_initials, vendor, po_number, notes)
-        VALUES ('RECEIVE', ?, ?, ?, ?)
+        INSERT INTO transactions (type, user_initials, employee_id, po_number, vendor, notes)
+        VALUES ('RECEIVE', ?, ?, ?, ?, ?)
       `,
       )
-      .run(user_initials, vendor, po_number, notes);
+      .run(user_initials, employee_id, po_number, "", "");
 
     const txId = txRes.lastInsertRowid;
 
@@ -609,7 +634,6 @@ function receiveBatch(db, payload) {
 function checkoutItem(db, payload) {
   const job_number = String(payload.job_number || "").trim();
   const tech = String(payload.tech || "").trim();
-  const notes = String(payload.notes || "").trim();
 
   const item_id = Number(payload.item_id);
   const location_id = Number(payload.location_id);
@@ -675,7 +699,6 @@ function countAndAdjust(db, payload) {
   const user_initials = String(payload.user_initials || "")
     .trim()
     .toUpperCase();
-  const notes = String(payload.notes || "").trim();
 
   const item_id = Number(payload.item_id);
   const location_id = Number(payload.location_id);
@@ -978,8 +1001,35 @@ function resetDb(db) {
   return { ok: true };
 }
 
-module.exports = {
-  openDb,
+
+
+function listEmployees(db) {
+  return db
+    .prepare("SELECT id, name, is_active, created_at FROM employees ORDER BY is_active DESC, name ASC")
+    .all();
+}
+
+function createEmployee(db, payload) {
+  const name = String(payload?.name || "").trim();
+  if (!name) throw new Error("Employee name required.");
+  try {
+    const info = db.prepare("INSERT INTO employees (name, is_active) VALUES (?, 1)").run(name);
+    return { id: info.lastInsertRowid, name, is_active: 1 };
+  } catch (e) {
+    if (String(e.message).includes("UNIQUE")) throw new Error("Employee already exists.");
+    throw e;
+  }
+}
+
+function setEmployeeActive(db, payload) {
+  const id = Number(payload?.id);
+  const is_active = Number(payload?.is_active) ? 1 : 0;
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid employee id.");
+  db.prepare("UPDATE employees SET is_active=? WHERE id=?").run(is_active, id);
+  return { ok: true };
+}
+
+module.exports = {openDb,
   ensureSchema,
   getMeta,
   listItems,
@@ -1001,4 +1051,7 @@ module.exports = {
   attachBarcodeToItem,
   deleteLocation,
   importLocationsCsv,
+  listEmployees,
+  createEmployee,
+  setEmployeeActive,
 };

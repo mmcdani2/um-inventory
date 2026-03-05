@@ -1,6 +1,16 @@
 ﻿<!-- src/renderer/pages/receive.html -->
 <!doctype html>
 <html lang="en">
+<style>
+  #receivePage #receiveScanStage {
+    display: block;
+  }
+
+  #receivePage #receiveScanStage>.card-block {
+    width: 100%;
+    max-width: none;
+  }
+</style>
 
 <head>
   <meta charset="utf-8" />
@@ -42,18 +52,6 @@
             NONE SET
           </div>
           <div id="activeLocationSubtext" class="msg" style="margin-top: 4px"></div>
-          <button id="btnChangeLocation" type="button" style="
-    margin-top: 6px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    text-decoration: underline;
-    font-size: 12px;
-    cursor: pointer;
-    opacity: 0.85;
-  ">
-            Change location
-          </button>
         </div>
         <div class="actions">
           <button id="btnClearLocation" class="btn" type="button">
@@ -63,7 +61,7 @@
       </div>
     </div>
 
-    <div class="split" style="margin-top: 12px">
+    <div class="receiveScanStage" style="margin-top: 12px">
       <!-- LOCATION SCAN -->
       <div class="card-block" id="locationScanCard">
         <div class="msg" style="margin: 0 0 8px 0">Scan Location</div>
@@ -281,26 +279,25 @@
     <div class="card-block" style="margin-top: 12px">
       <details id="batchDetails">
         <summary class="msg" style="cursor: pointer; margin: 0">
-          Details (optional)
+          Details
         </summary>
         <div class="split" style="margin-top: 10px">
           <div>
             <div class="msg" style="margin: 0 0 6px 0">Initials</div>
             <input id="receiveUserInitials" class="input input-mini" type="text" autocomplete="off" />
           </div>
-          <div>
-            <div class="msg" style="margin: 0 0 6px 0">Vendor</div>
-            <input id="receiveVendor" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-          <div>
+
+<div>
+  <div class="msg" style="margin: 0 0 6px 0">Employee <span class="msg err">*</span></div>
+  <select id="receiveEmployeeId" class="input input-mini" style="width: 100%">
+    <option value="">Select…</option>
+  </select>
+</div>
+<div>
             <div class="msg" style="margin: 0 0 6px 0">PO #</div>
             <input id="receivePoNumber" class="input input-mini" type="text" autocomplete="off" />
           </div>
-          <div>
-            <div class="msg" style="margin: 0 0 6px 0">Notes</div>
-            <input id="receiveNotes" class="input input-mini" type="text" autocomplete="off" />
-          </div>
-        </div>
+</div>
       </details>
     </div>
 

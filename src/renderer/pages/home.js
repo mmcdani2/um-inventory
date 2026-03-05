@@ -37,6 +37,11 @@
     });
   }
 
+  const kpiSkus = document.getElementById("kpiSkus");
+  const kpiLocs = document.getElementById("kpiLocs");
+  const kpiReorder = document.getElementById("kpiReorder");
+  const kpiTx7d = document.getElementById("kpiTx7d");
+
   async function load() {
     try {
       const stats = await window.api.homeStats();

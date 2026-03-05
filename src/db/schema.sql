@@ -63,6 +63,16 @@ CREATE TABLE IF NOT EXISTS inventory_balances (
 CREATE INDEX IF NOT EXISTS idx_balances_item ON inventory_balances(item_id);
 CREATE INDEX IF NOT EXISTS idx_balances_location ON inventory_balances(location_id);
 
+-- Employees (for audit attribution)
+CREATE TABLE IF NOT EXISTS employees (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(is_active);
+
 -- Ledger of all movements (source of truth)
 -- type: 'RECEIVE' | 'CHECKOUT' | 'ADJUST'
 CREATE TABLE IF NOT EXISTS transactions (
@@ -71,6 +81,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
 
   user_initials TEXT NOT NULL DEFAULT '',
+
+  employee_id INTEGER NOT NULL DEFAULT 0,
 
   vendor TEXT NOT NULL DEFAULT '',
   po_number TEXT NOT NULL DEFAULT '',
@@ -110,6 +122,8 @@ CREATE TABLE IF NOT EXISTS cycle_counts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   counted_at TEXT NOT NULL DEFAULT (datetime('now')),
   user_initials TEXT NOT NULL DEFAULT '',
+
+  employee_id INTEGER NOT NULL DEFAULT 0,
   location_id INTEGER NOT NULL,
   notes TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE

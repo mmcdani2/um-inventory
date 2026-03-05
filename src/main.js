@@ -84,7 +84,21 @@ app.whenReady().then(() => {
     return dbLayer.importItemsCsv(db, payload);
   });
 
-  ipcMain.handle("locations:list", () => {
+  
+
+ipcMain.handle("employees:list", () => {
+  return dbLayer.listEmployees(db);
+});
+
+ipcMain.handle("employees:create", (_evt, payload) => {
+  return dbLayer.createEmployee(db, payload);
+});
+
+ipcMain.handle("employees:setActive", (_evt, payload) => {
+  return dbLayer.setEmployeeActive(db, payload);
+});
+
+ipcMain.handle("locations:list", () => {
     return dbLayer.listLocations(db);
   });
 
