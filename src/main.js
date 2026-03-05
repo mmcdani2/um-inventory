@@ -63,8 +63,58 @@ function createWindow() {
   });
 }
 
+function sessionPath(app) {
+  return path.join(app.getPath("userData"), "session.json");
+}
+
+function writeSession(app, sessionObj) {
+  fs.writeFileSync(
+    sessionPath(app),
+    JSON.stringify(sessionObj, null, 2),
+    "utf8",
+  );
+}
+
+function readSession(app) {
+  try {
+    const p = sessionPath(app);
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function clearSession(app) {
+  try {
+    const p = sessionPath(app);
+    if (fs.existsSync(p)) fs.unlinkSync(p);
+  } catch {}
+}
+
 app.whenReady().then(() => {
   initDb();
+
+  ipcMain.handle("employees:setPin", async (_evt, payload) =>
+    dbLayer.setEmployeePin(db, payload),
+  );
+
+  ipcMain.handle("auth:login", async (_evt, { employee_id, pin }) => {
+    const res = dbLayer.verifyEmployeePin(db, { employee_id, pin });
+    writeSession(app, {
+      employee_id: res.employee.id,
+      name: res.employee.name,
+      ts: Date.now(),
+    });
+    return { ok: true, employee: res.employee };
+  });
+
+  ipcMain.handle("auth:getSession", async () => readSession(app) || null);
+
+  ipcMain.handle("auth:logout", async () => {
+    clearSession(app);
+    return { ok: true };
+  });
 
   ipcMain.handle("db:getInfo", () => {
     const dbPath = getDbPath();
@@ -84,21 +134,19 @@ app.whenReady().then(() => {
     return dbLayer.importItemsCsv(db, payload);
   });
 
-  
+  ipcMain.handle("employees:list", () => {
+    return dbLayer.listEmployees(db);
+  });
 
-ipcMain.handle("employees:list", () => {
-  return dbLayer.listEmployees(db);
-});
+  ipcMain.handle("employees:create", (_evt, payload) => {
+    return dbLayer.createEmployee(db, payload);
+  });
 
-ipcMain.handle("employees:create", (_evt, payload) => {
-  return dbLayer.createEmployee(db, payload);
-});
+  ipcMain.handle("employees:setActive", (_evt, payload) => {
+    return dbLayer.setEmployeeActive(db, payload);
+  });
 
-ipcMain.handle("employees:setActive", (_evt, payload) => {
-  return dbLayer.setEmployeeActive(db, payload);
-});
-
-ipcMain.handle("locations:list", () => {
+  ipcMain.handle("locations:list", () => {
     return dbLayer.listLocations(db);
   });
 
@@ -159,7 +207,7 @@ ipcMain.handle("locations:list", () => {
       // Close DB so the file isn't locked (WAL mode)
       try {
         db?.close?.();
-      } catch { }
+      } catch {}
 
       const dbPath = getDbPath();
       const wal = `${dbPath}-wal`;
@@ -169,7 +217,7 @@ ipcMain.handle("locations:list", () => {
       for (const p of [dbPath, wal, shm]) {
         try {
           fs.unlinkSync(p);
-        } catch { }
+        } catch {}
       }
 
       // Relaunch clean
@@ -208,33 +256,46 @@ ipcMain.handle("locations:list", () => {
   // Barcode/label rendering (offline, deterministic)
   const bwipjs = require("bwip-js");
 
-  ipcMain.handle("label:renderBarcodePng", async (_evt, { type, text, scale = 3 }) => {
-    const t = String(text || "").trim();
-    if (!t) throw new Error("Barcode text required.");
+  ipcMain.handle(
+    "label:renderBarcodePng",
+    async (_evt, { type, text, scale = 3 }) => {
+      const t = String(text || "").trim();
+      if (!t) throw new Error("Barcode text required.");
 
-    // Map our UI types -> bwip-js bcid
-    const bcid = (String(type || "").toLowerCase() === "code128") ? "code128" : "qrcode";
+      // Map our UI types -> bwip-js bcid
+      const bcid =
+        String(type || "").toLowerCase() === "code128" ? "code128" : "qrcode";
 
-    const png = await bwipjs.toBuffer({
-      bcid,
-      text: t,
-      scale: Number(scale) || 3,
-      includetext: false,
-      padding: 0,
-    });
+      const png = await bwipjs.toBuffer({
+        bcid,
+        text: t,
+        scale: Number(scale) || 3,
+        includetext: false,
+        padding: 0,
+      });
 
-    return `data:image/png;base64,${png.toString("base64")}`;
-  });
+      return `data:image/png;base64,${png.toString("base64")}`;
+    },
+  );
 
-  ipcMain.handle("print:label2x1", async (_evt, { type = "qrcode", text, sku = "", description = "" }) => {
-    const t = String(text || "").trim();
-    if (!t) throw new Error("Print text required.");
+  ipcMain.handle(
+    "print:label2x1",
+    async (_evt, { type = "qrcode", text, sku = "", description = "" }) => {
+      const t = String(text || "").trim();
+      if (!t) throw new Error("Print text required.");
 
-    const bcid = String(type).toLowerCase() === "code128" ? "code128" : "qrcode";
-    const png = await bwipjs.toBuffer({ bcid, text: t, scale: 3, includetext: false, padding: 0 });
-    const dataUrl = `data:image/png;base64,${png.toString("base64")}`;
+      const bcid =
+        String(type).toLowerCase() === "code128" ? "code128" : "qrcode";
+      const png = await bwipjs.toBuffer({
+        bcid,
+        text: t,
+        scale: 3,
+        includetext: false,
+        padding: 0,
+      });
+      const dataUrl = `data:image/png;base64,${png.toString("base64")}`;
 
-    const labelHtml = `<!doctype html>
+      const labelHtml = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -260,27 +321,34 @@ ipcMain.handle("locations:list", () => {
 </body>
 </html>`;
 
-    const printWin = new BrowserWindow({
-      show: false,
-      webPreferences: { contextIsolation: true, sandbox: false },
-    });
-
-    await printWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(labelHtml));
-
-    await new Promise((resolve, reject) => {
-      printWin.webContents.print({ silent: false, printBackground: true }, (success, err) => {
-        if (success) return resolve({ canceled: false });
-
-        const msg = String(err || "Print failed");
-        if (msg.toLowerCase().includes("canceled")) return resolve({ canceled: true });
-
-        reject(new Error(msg));
+      const printWin = new BrowserWindow({
+        show: false,
+        webPreferences: { contextIsolation: true, sandbox: false },
       });
-    });
 
-    printWin.close();
-    return true;
-  });
+      await printWin.loadURL(
+        "data:text/html;charset=utf-8," + encodeURIComponent(labelHtml),
+      );
+
+      await new Promise((resolve, reject) => {
+        printWin.webContents.print(
+          { silent: false, printBackground: true },
+          (success, err) => {
+            if (success) return resolve({ canceled: false });
+
+            const msg = String(err || "Print failed");
+            if (msg.toLowerCase().includes("canceled"))
+              return resolve({ canceled: true });
+
+            reject(new Error(msg));
+          },
+        );
+      });
+
+      printWin.close();
+      return true;
+    },
+  );
 
   createWindow();
 

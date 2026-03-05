@@ -1,6 +1,7 @@
-﻿const fs = require("fs");
+﻿const Database = require("better-sqlite3");
+const crypto = require("crypto");
+const fs = require("fs");
 const path = require("path");
-const Database = require("better-sqlite3");
 
 function openDb({ app, baseDir }) {
   const dir = baseDir || path.join(app.getPath("userData"), "data");
@@ -80,7 +81,8 @@ function ensureSchema(db, schemaFilePath) {
 
   // Migration v3 -> v4: enforce cross-table barcode uniqueness + block blank alias barcodes
   const cur3 = Number(
-    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 3,
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 3,
   );
 
   if (cur3 < 4) {
@@ -143,12 +145,16 @@ function ensureSchema(db, schemaFilePath) {
     END;
   `);
 
-    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("4", "schema_version");
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "4",
+      "schema_version",
+    );
   }
 
   // Migration v4 -> v5: add item_barcodes.kind + enforce allowed values (and block 'house' in aliases)
   const cur4 = Number(
-    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 4,
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 4,
   );
 
   if (cur4 < 5) {
@@ -156,7 +162,9 @@ function ensureSchema(db, schemaFilePath) {
     const cols = db.prepare("PRAGMA table_info(item_barcodes)").all();
     const hasKind = cols.some((c) => c.name === "kind");
     if (!hasKind) {
-      db.exec(`ALTER TABLE item_barcodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'vendor_upc';`);
+      db.exec(
+        `ALTER TABLE item_barcodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'vendor_upc';`,
+      );
     }
 
     // enforce allowed kinds + prevent 'house' kind in alias table
@@ -194,15 +202,19 @@ function ensureSchema(db, schemaFilePath) {
     END;
   `);
 
-    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("5", "schema_version");
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "5",
+      "schema_version",
+    );
   }
 
-// Migration v5 -> v6: employees table + transactions.employee_id
-const cur5 = Number(
-  db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")?.value || 5,
-);
-if (cur5 < 6) {
-  db.exec(`
+  // Migration v5 -> v6: employees table + transactions.employee_id
+  const cur5 = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 5,
+  );
+  if (cur5 < 6) {
+    db.exec(`
     CREATE TABLE IF NOT EXISTS employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -212,16 +224,64 @@ if (cur5 < 6) {
     CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(is_active);
   `);
 
-  // add employee_id column if missing
-  const txCols = db.prepare("PRAGMA table_info(transactions)").all();
-  const hasEmployeeId = txCols.some((c) => c.name === "employee_id");
-  if (!hasEmployeeId) {
-    db.exec(`ALTER TABLE transactions ADD COLUMN employee_id INTEGER NOT NULL DEFAULT 0;`);
+    // add employee_id column if missing
+    const txCols = db.prepare("PRAGMA table_info(transactions)").all();
+    const hasEmployeeId = txCols.some((c) => c.name === "employee_id");
+    if (!hasEmployeeId) {
+      db.exec(
+        `ALTER TABLE transactions ADD COLUMN employee_id INTEGER NOT NULL DEFAULT 0;`,
+      );
+    }
+
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "6",
+      "schema_version",
+    );
   }
 
-  db.prepare("UPDATE app_meta SET value=? WHERE key=?").run("6", "schema_version");
-}
+  // Migration v6 -> v7: add employee PIN columns (required for every login)
+  const cur6 = Number(
+    db.prepare("SELECT value FROM app_meta WHERE key=?").get("schema_version")
+      ?.value || 6,
+  );
 
+  if (cur6 < 7) {
+    const empCols = db.prepare("PRAGMA table_info(employees)").all();
+    const hasSalt = empCols.some((c) => c.name === "pin_salt");
+    const hasHash = empCols.some((c) => c.name === "pin_hash");
+
+    if (!hasSalt) {
+      db.exec(
+        `ALTER TABLE employees ADD COLUMN pin_salt TEXT NOT NULL DEFAULT 'unset';`,
+      );
+    }
+    if (!hasHash) {
+      db.exec(
+        `ALTER TABLE employees ADD COLUMN pin_hash TEXT NOT NULL DEFAULT 'unset';`,
+      );
+    }
+
+    // Backfill existing employees: set to an "unset PIN" state (cannot login until setPin)
+    const rows = db
+      .prepare(
+        `SELECT id FROM employees WHERE pin_salt='unset' OR pin_hash='unset'`,
+      )
+      .all();
+    const upd = db.prepare(
+      `UPDATE employees SET pin_salt=?, pin_hash=? WHERE id=?`,
+    );
+
+    for (const r of rows) {
+      const salt = crypto.randomBytes(16).toString("hex");
+      const hash = crypto.scryptSync("__UNSET__", salt, 64).toString("hex");
+      upd.run(salt, hash, r.id);
+    }
+
+    db.prepare("UPDATE app_meta SET value=? WHERE key=?").run(
+      "7",
+      "schema_version",
+    );
+  }
 }
 
 function getMeta(db) {
@@ -286,7 +346,10 @@ function findItemByBarcode(db, barcodeRaw) {
   );
 }
 
-function attachBarcodeToItem(db, { item_id, barcode, kind, source = "vendor" }) {
+function attachBarcodeToItem(
+  db,
+  { item_id, barcode, kind, source = "vendor" },
+) {
   const itemId = Number(item_id);
   const bc = String(barcode || "").trim();
   const src = String(source || "").trim();
@@ -298,7 +361,8 @@ function attachBarcodeToItem(db, { item_id, barcode, kind, source = "vendor" }) 
     k = src === "house" ? "alt" : "vendor_upc";
   }
 
-  if (!Number.isFinite(itemId) || itemId <= 0) throw new Error("Invalid item_id.");
+  if (!Number.isFinite(itemId) || itemId <= 0)
+    throw new Error("Invalid item_id.");
   if (!bc) throw new Error("Barcode is required.");
 
   try {
@@ -487,7 +551,6 @@ function receiveItem(db, payload) {
   const qty = Number(payload.qty);
   const unit_cost = Number(payload.unit_cost || 0);
 
-  if (!user_initials) throw new Error("User initials required.");
   if (!vendor) throw new Error("Vendor required.");
   if (!Number.isFinite(item_id) || item_id <= 0)
     throw new Error("Item required.");
@@ -569,7 +632,8 @@ function receiveBatch(db, payload) {
   if (!Number.isFinite(location_id) || location_id <= 0)
     throw new Error("Location required.");
   if (!lines.length) throw new Error("At least one line is required.");
-  if (!Number.isFinite(employee_id) || employee_id <= 0) throw new Error("Employee required.");
+  if (!Number.isFinite(employee_id) || employee_id <= 0)
+    throw new Error("Employee required.");
 
   // validate lines up front (fail-fast)
   for (const [idx, ln] of lines.entries()) {
@@ -1001,24 +1065,89 @@ function resetDb(db) {
   return { ok: true };
 }
 
-
-
 function listEmployees(db) {
   return db
-    .prepare("SELECT id, name, is_active, created_at FROM employees ORDER BY is_active DESC, name ASC")
+    .prepare(
+      "SELECT id, name, is_active, created_at FROM employees ORDER BY is_active DESC, name ASC",
+    )
     .all();
 }
 
-function createEmployee(db, payload) {
-  const name = String(payload?.name || "").trim();
-  if (!name) throw new Error("Employee name required.");
+function createEmployee(db, { name, pin }) {
+  const nm = String(name || "").trim();
+  const p = String(pin || "").trim();
+
+  if (!nm) throw new Error("Employee name required.");
+  if (!/^\d{4,8}$/.test(p)) throw new Error("PIN must be 4–8 digits.");
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(p, salt, 64).toString("hex");
+
   try {
-    const info = db.prepare("INSERT INTO employees (name, is_active) VALUES (?, 1)").run(name);
-    return { id: info.lastInsertRowid, name, is_active: 1 };
+    const info = db
+      .prepare(
+        `INSERT INTO employees (name, pin_salt, pin_hash, is_active)
+         VALUES (?, ?, ?, 1)`,
+      )
+      .run(nm, salt, hash);
+
+    return { id: info.lastInsertRowid, name: nm, is_active: 1 };
   } catch (e) {
-    if (String(e.message).includes("UNIQUE")) throw new Error("Employee already exists.");
+    if (String(e.message).includes("UNIQUE"))
+      throw new Error("Employee already exists.");
     throw e;
   }
+}
+
+function setEmployeePin(db, { employee_id, pin }) {
+  const id = Number(employee_id);
+  const p = String(pin || "").trim();
+
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid employee_id.");
+  if (!/^\d{4,8}$/.test(p)) throw new Error("PIN must be 4–8 digits.");
+
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(p, salt, 64).toString("hex");
+
+  db.prepare("UPDATE employees SET pin_salt=?, pin_hash=? WHERE id=?").run(
+    salt,
+    hash,
+    id,
+  );
+  return { ok: true };
+}
+
+function verifyEmployeePin(db, { employee_id, pin }) {
+  const id = Number(employee_id);
+  const p = String(pin || "").trim();
+
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Invalid employee_id.");
+  if (!/^\d{4,8}$/.test(p)) throw new Error("Invalid PIN.");
+
+  const row = db
+    .prepare(
+      "SELECT id, name, pin_salt, pin_hash, is_active FROM employees WHERE id=?",
+    )
+    .get(id);
+
+  if (!row || row.is_active === 0) throw new Error("Employee not active.");
+
+  const candidate = crypto.scryptSync(p, row.pin_salt, 64);
+  const stored = Buffer.from(row.pin_hash, "hex");
+
+  const ok =
+    stored.length === candidate.length &&
+    crypto.timingSafeEqual(stored, candidate);
+
+  if (!ok) throw new Error("Invalid PIN.");
+
+  // Block login if still unset
+  const unset = crypto
+    .scryptSync("__UNSET__", row.pin_salt, 64)
+    .toString("hex");
+  if (row.pin_hash === unset) throw new Error("PIN not set.");
+
+  return { ok: true, employee: { id: row.id, name: row.name } };
 }
 
 function setEmployeeActive(db, payload) {
@@ -1029,7 +1158,8 @@ function setEmployeeActive(db, payload) {
   return { ok: true };
 }
 
-module.exports = {openDb,
+module.exports = {
+  openDb,
   ensureSchema,
   getMeta,
   listItems,
@@ -1054,4 +1184,6 @@ module.exports = {openDb,
   listEmployees,
   createEmployee,
   setEmployeeActive,
+  setEmployeePin,
+  verifyEmployeePin,
 };

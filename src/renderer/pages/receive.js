@@ -4,7 +4,9 @@ export async function mountReceive() {
   // Banner + location controls
   const activeLocationBanner = document.getElementById("activeLocationBanner");
   const activeLocationText = document.getElementById("activeLocationText");
-  const activeLocationSubtext = document.getElementById("activeLocationSubtext");
+  const activeLocationSubtext = document.getElementById(
+    "activeLocationSubtext",
+  );
   const btnClearLocation = document.getElementById("btnClearLocation");
   const btnChangeLocation = document.getElementById("btnChangeLocation");
 
@@ -38,14 +40,17 @@ export async function mountReceive() {
   const btnFinalizeReceive = document.getElementById("btnFinalizeReceive");
 
   // Optional details
-  const receiveUserInitials = document.getElementById("receiveUserInitials");
   const receiveEmployeeId = document.getElementById("receiveEmployeeId");
   const receivePoNumber = document.getElementById("receivePoNumber");
 
   // Location change safety panel
   const locationChangeModal = document.getElementById("locationChangeModal");
-  const btnLocationChangeCancel = document.getElementById("btnLocationChangeCancel");
-  const btnLocationChangeClear = document.getElementById("btnLocationChangeClear");
+  const btnLocationChangeCancel = document.getElementById(
+    "btnLocationChangeCancel",
+  );
+  const btnLocationChangeClear = document.getElementById(
+    "btnLocationChangeClear",
+  );
 
   // Smart Add
   const smartAddWrap = document.getElementById("smartAddWrap");
@@ -89,13 +94,17 @@ export async function mountReceive() {
 
   // ---------- helpers ----------
   const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;",
-    })[c]);
+    String(s ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
+    );
 
   const toNum = (v, fallback = 0) => {
     const n = Number(String(v ?? "").trim());
@@ -117,7 +126,7 @@ export async function mountReceive() {
     try {
       el.focus();
       el.select();
-    } catch { }
+    } catch {}
   };
 
   function syncQtyOverrideEnabled() {
@@ -156,7 +165,9 @@ export async function mountReceive() {
   }
 
   function setActiveLocation(loc) {
-    activeLoc = loc ? { id: loc.id, code: loc.code, name: loc.name || "" } : null;
+    activeLoc = loc
+      ? { id: loc.id, code: loc.code, name: loc.name || "" }
+      : null;
 
     if (!activeLoc) {
       bannerTint(false);
@@ -230,29 +241,46 @@ export async function mountReceive() {
   }
 
   async function findLocationByCode(raw) {
-    const needle = String(raw || "").trim().toLowerCase();
+    const needle = String(raw || "")
+      .trim()
+      .toLowerCase();
     if (!needle) return null;
 
     // Always fetch fresh locations instead of relying on stale in-memory locs
     const freshLocs = await window.api.locationsList();
     locs = Array.isArray(freshLocs) ? freshLocs : [];
 
-    return locs.find((l) => String(l.code || "").trim().toLowerCase() === needle) || null;
+    return (
+      locs.find(
+        (l) =>
+          String(l.code || "")
+            .trim()
+            .toLowerCase() === needle,
+      ) || null
+    );
   }
 
   function findItemByScan(raw) {
-    const needle = String(raw || "").trim().toLowerCase();
+    const needle = String(raw || "")
+      .trim()
+      .toLowerCase();
     if (!needle) return null;
 
     // Match house barcode stored on items table
     const byHouse = items.find(
-      (i) => String(i.barcode ?? "").trim().toLowerCase() === needle
+      (i) =>
+        String(i.barcode ?? "")
+          .trim()
+          .toLowerCase() === needle,
     );
     if (byHouse) return byHouse;
 
     // Match SKU
     const bySku = items.find(
-      (i) => String(i.sku ?? "").trim().toLowerCase() === needle
+      (i) =>
+        String(i.sku ?? "")
+          .trim()
+          .toLowerCase() === needle,
     );
     if (bySku) return bySku;
 
@@ -338,7 +366,9 @@ export async function mountReceive() {
   }
 
   function buildSmartAddSuggestions(queryRaw) {
-    const q = String(queryRaw || "").trim().toLowerCase();
+    const q = String(queryRaw || "")
+      .trim()
+      .toLowerCase();
     if (!q) return [];
 
     const scoreItem = (it) => {
@@ -382,20 +412,29 @@ export async function mountReceive() {
     const digitsOnly = /^[0-9]+$/.test(b);
     const len = b.length;
 
-    const skuPrefix = digitsOnly ? (len === 12 ? "UPC" : len === 13 ? "EAN" : "BC") : "BC";
+    const skuPrefix = digitsOnly
+      ? len === 12
+        ? "UPC"
+        : len === 13
+          ? "EAN"
+          : "BC"
+      : "BC";
     const sku = `${skuPrefix}-${b}`;
 
     const description =
-      digitsOnly && len === 12 ? `New item (UPC ${b})` :
-        digitsOnly && len === 13 ? `New item (EAN ${b})` :
-          `New item (${b})`;
+      digitsOnly && len === 12
+        ? `New item (UPC ${b})`
+        : digitsOnly && len === 13
+          ? `New item (EAN ${b})`
+          : `New item (${b})`;
 
     return { sku, description, category: "Uncategorized" };
   }
 
   async function openSmartAdd(barcodeValue, qtyToAdd) {
     smartAddPendingQty = Math.max(0, Number.parseFloat(qtyToAdd ?? 1));
-    if (!Number.isFinite(smartAddPendingQty) || smartAddPendingQty <= 0) smartAddPendingQty = 1;
+    if (!Number.isFinite(smartAddPendingQty) || smartAddPendingQty <= 0)
+      smartAddPendingQty = 1;
 
     setErr(smartAddStatus, "");
     smartAddWrap.hidden = false;
@@ -409,8 +448,12 @@ export async function mountReceive() {
     smartAddCategory.value = guess.category;
     smartAddUnit.value = smartAddUnit.value || "EA";
     smartAddVendor.value = "";
-    smartAddDefaultCost.value = String(toNum(smartAddDefaultCost.value, 0) || 0);
-    smartAddReorderPoint.value = String(toNum(smartAddReorderPoint.value, 0) || 0);
+    smartAddDefaultCost.value = String(
+      toNum(smartAddDefaultCost.value, 0) || 0,
+    );
+    smartAddReorderPoint.value = String(
+      toNum(smartAddReorderPoint.value, 0) || 0,
+    );
     smartAddReorderQty.value = String(toNum(smartAddReorderQty.value, 0) || 0);
     if (!smartAddBarcodeType.value) smartAddBarcodeType.value = "qr";
     if (smartAddPrintLabel) smartAddPrintLabel.checked = true;
@@ -422,8 +465,13 @@ export async function mountReceive() {
       if (info) {
         if (info.title) smartAddDescription.value = info.title;
         if (info.category) {
-          const parts = String(info.category).split(">").map((s) => s.trim()).filter(Boolean);
-          smartAddCategory.value = parts.length ? parts[parts.length - 1] : String(info.category).trim();
+          const parts = String(info.category)
+            .split(">")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          smartAddCategory.value = parts.length
+            ? parts[parts.length - 1]
+            : String(info.category).trim();
         }
         if (info.brand) smartAddVendor.value = info.brand;
       }
@@ -434,7 +482,8 @@ export async function mountReceive() {
 
     // Seed attach suggestions using best-known description
     smartAddSuggestedQuery = String(smartAddDescription.value || "").trim();
-    if (smartAddAttachSearch) smartAddAttachSearch.value = smartAddSuggestedQuery;
+    if (smartAddAttachSearch)
+      smartAddAttachSearch.value = smartAddSuggestedQuery;
     renderSmartAddSuggestions(smartAddSuggestedQuery);
     syncSmartAddModeUi();
 
@@ -467,23 +516,44 @@ export async function mountReceive() {
     items = Array.isArray(itemRes) ? itemRes : [];
   }
 
-async function refreshEmployees() {
-  if (!receiveEmployeeId) return;
-  const employees = await window.api.employeesList();
-  receiveEmployeeId.innerHTML = '<option value="">Select…</option>';
-  for (const e of employees) {
-    if (!e || !e.id || e.is_active === 0) continue;
-    const opt = document.createElement("option");
-    opt.value = String(e.id);
-    opt.textContent = e.name;
-    receiveEmployeeId.appendChild(opt);
-  }
-}
+  async function refreshEmployees() {
+    if (!receiveEmployeeId) return;
 
+    const employees = await window.api.employeesList();
+
+    receiveEmployeeId.innerHTML = '<option value="">Select…</option>';
+    for (const e of employees) {
+      if (!e || !e.id || e.is_active === 0) continue;
+      const opt = document.createElement("option");
+      opt.value = String(e.id);
+      opt.textContent = e.name;
+      receiveEmployeeId.appendChild(opt);
+    }
+
+    // sticky last-selected employee per device
+    try {
+      const last = localStorage.getItem("receive:lastEmployeeId");
+      if (last && receiveEmployeeId.querySelector(`option[value="${last}"]`)) {
+        receiveEmployeeId.value = last;
+      }
+    } catch {}
+  }
+
+  receiveEmployeeId?.addEventListener("change", () => {
+    try {
+      localStorage.setItem(
+        "receive:lastEmployeeId",
+        String(receiveEmployeeId.value || ""),
+      );
+    } catch {}
+  });
 
   // ---------- load ----------
   async function loadData() {
-    const [locRes, itemRes] = await Promise.all([window.api.locationsList(), window.api.itemsList()]);
+    const [locRes, itemRes] = await Promise.all([
+      window.api.locationsList(),
+      window.api.itemsList(),
+    ]);
     locs = Array.isArray(locRes) ? locRes : [];
     items = Array.isArray(itemRes) ? itemRes : [];
   }
@@ -493,7 +563,6 @@ async function refreshEmployees() {
     locationScanInput,
     itemScanInput,
     qtyOverrideInput,
-    receiveUserInitials,
     receiveEmployeeId,
     receivePoNumber,
     smartAddBarcode,
@@ -507,7 +576,9 @@ async function refreshEmployees() {
     smartAddReorderQty,
   ].forEach((el) => {
     el?.addEventListener("focus", () => {
-      try { el.select(); } catch { }
+      try {
+        el.select();
+      } catch {}
     });
   });
 
@@ -540,7 +611,7 @@ async function refreshEmployees() {
     }
 
     setActiveLocation(hit);
-    focusSelect(itemScanInput);   
+    focusSelect(itemScanInput);
     setStatus(`OK: location set → ${hit.code}`);
     locationScanInput.value = "";
   });
@@ -580,9 +651,14 @@ async function refreshEmployees() {
 
     // Don’t clear batch from here. Clear batch in ONE place only.
     if (linesByItemId.size > 0) {
-      setErr(locationScanError, "Clear the batch before clearing/changing location.");
+      setErr(
+        locationScanError,
+        "Clear the batch before clearing/changing location.",
+      );
       setStatus("Batch has lines — clear batch first.");
-      try { btnClearBatch?.focus(); } catch { }
+      try {
+        btnClearBatch?.focus();
+      } catch {}
       return;
     }
 
@@ -645,8 +721,8 @@ async function refreshEmployees() {
   });
 
   btnSmartAddSave?.addEventListener("click", async () => {
-    if (btnSmartAddSave.disabled) return;       // ✅ guard against double-submit
-    btnSmartAddSave.disabled = true;            // ✅ disable immediately
+    if (btnSmartAddSave.disabled) return; // ✅ guard against double-submit
+    btnSmartAddSave.disabled = true; // ✅ disable immediately
 
     setErr(smartAddStatus, "");
 
@@ -694,7 +770,8 @@ async function refreshEmployees() {
           smartAddAttachSearch.value = String(existing.sku || "");
           renderSmartAddSuggestions(smartAddAttachSearch.value);
         }
-        if (smartAddAttachSelect) smartAddAttachSelect.value = String(existing.id);
+        if (smartAddAttachSelect)
+          smartAddAttachSelect.value = String(existing.id);
 
         setErr(
           smartAddStatus,
@@ -708,11 +785,16 @@ async function refreshEmployees() {
       if (smartAddMode() === "attach") {
         const targetId = Number(smartAddAttachSelect.value);
         const target = items.find((i) => Number(i.id) === targetId);
-        if (!target) throw new Error("Selected item not found. Refresh and try again.");
+        if (!target)
+          throw new Error("Selected item not found. Refresh and try again.");
 
-        await window.api.itemsAttachBarcode({ item_id: targetId, barcode: vendorBarcode, source: "vendor" });
+        await window.api.itemsAttachBarcode({
+          item_id: targetId,
+          barcode: vendorBarcode,
+          source: "vendor",
+        });
         await refreshItems();
-    await refreshEmployees();
+        await refreshEmployees();
         addScan(target, smartAddPendingQty);
         closeSmartAdd();
         window.dispatchEvent(new CustomEvent("data:changed"));
@@ -738,12 +820,23 @@ async function refreshEmployees() {
       const createdItem =
         created && created.id
           ? created
-          : items.find((i) => String(i.sku || "").toLowerCase() === sku.toLowerCase()) ||
-          items.find((i) => String(i.barcode || "").toLowerCase() === houseBarcode.toLowerCase());
+          : items.find(
+              (i) => String(i.sku || "").toLowerCase() === sku.toLowerCase(),
+            ) ||
+            items.find(
+              (i) =>
+                String(i.barcode || "").toLowerCase() ===
+                houseBarcode.toLowerCase(),
+            );
 
-      if (!createdItem) throw new Error("Item created, but could not re-load it.");
+      if (!createdItem)
+        throw new Error("Item created, but could not re-load it.");
 
-      await window.api.itemsAttachBarcode({ item_id: createdItem.id, barcode: vendorBarcode, source: "vendor" });
+      await window.api.itemsAttachBarcode({
+        item_id: createdItem.id,
+        barcode: vendorBarcode,
+        source: "vendor",
+      });
 
       addScan(createdItem, smartAddPendingQty);
 
@@ -787,26 +880,26 @@ async function refreshEmployees() {
       return focusSelect(itemScanInput);
     }
 
-    
+    const empId = Number(receiveEmployeeId?.value || 0);
+    if (!empId) {
+      setErr(itemScanError, "Employee is required.");
+      // open details panel if closed
+      try {
+        document.getElementById("batchDetails").open = true;
+      } catch {}
+      return focusSelect(receiveEmployeeId);
+    }
 
-const empId = Number(receiveEmployeeId?.value || 0);
-if (!empId) {
-  setErr(itemScanError, "Employee is required.");
-  // open details panel if closed
-  try { document.getElementById("batchDetails").open = true; } catch {}
-  return focusSelect(receiveEmployeeId);
-}
-
-btnFinalizeReceive.disabled = true;
+    btnFinalizeReceive.disabled = true;
 
     try {
       const payload = {
-  user_initials: String(receiveUserInitials?.value || "").trim(),
-  employee_id: Number(receiveEmployeeId?.value || 0),
-  po_number: String(receivePoNumber?.value || "").trim(),
-  location_id: Number(activeLoc.id),
-  lines,
-};
+        user_initials: "",
+        employee_id: Number(receiveEmployeeId?.value || 0),
+        po_number: String(receivePoNumber?.value || "").trim(),
+        location_id: Number(activeLoc.id),
+        lines,
+      };
 
       await window.api.receiveSubmitBatch(payload);
 

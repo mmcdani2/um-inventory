@@ -10,7 +10,8 @@ async function barcodeLookup(upcRaw) {
   if (_barcodeCache.has(upc)) return _barcodeCache.get(upc);
 
   // offline-first: never block Smart Add
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return null;
+  if (typeof navigator !== "undefined" && navigator.onLine === false)
+    return null;
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 2000);
@@ -61,11 +62,10 @@ async function barcodeLookup(upcRaw) {
 }
 
 contextBridge.exposeInMainWorld("api", {
-
-employeesList: () => ipcRenderer.invoke("employees:list"),
-employeesCreate: (payload) => ipcRenderer.invoke("employees:create", payload),
-employeesSetActive: (payload) => ipcRenderer.invoke("employees:setActive", payload),
-
+  employeesList: () => ipcRenderer.invoke("employees:list"),
+  employeesCreate: (payload) => ipcRenderer.invoke("employees:create", payload),
+  employeesSetActive: (payload) =>
+    ipcRenderer.invoke("employees:setActive", payload),
 
   dbGetInfo: () => ipcRenderer.invoke("db:getInfo"),
   itemsList: () => ipcRenderer.invoke("items:list"),
@@ -98,6 +98,14 @@ employeesSetActive: (payload) => ipcRenderer.invoke("employees:setActive", paylo
   adminCheck: (password) => ipcRenderer.invoke("admin:check", password),
   locationsImportCsv: (payload) =>
     ipcRenderer.invoke("locations:importCsv", payload),
-  labelRenderBarcodePng: (payload) => ipcRenderer.invoke("label:renderBarcodePng", payload),
+  labelRenderBarcodePng: (payload) =>
+    ipcRenderer.invoke("label:renderBarcodePng", payload),
   printLabel2x1: (payload) => ipcRenderer.invoke("print:label2x1", payload),
+  employeesList: () => ipcRenderer.invoke("employees:list"),
+  employeesCreate: (payload) => ipcRenderer.invoke("employees:create", payload),
+  employeesSetPin: (payload) => ipcRenderer.invoke("employees:setPin", payload),
+
+  authLogin: (payload) => ipcRenderer.invoke("auth:login", payload),
+  authGetSession: () => ipcRenderer.invoke("auth:getSession"),
+  authLogout: () => ipcRenderer.invoke("auth:logout"),
 });

@@ -7,6 +7,16 @@ CREATE TABLE IF NOT EXISTS app_meta (
   value TEXT NOT NULL
 );
 
+-- Employees (local auth identity)
+CREATE TABLE IF NOT EXISTS employees (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  pin_salt TEXT NOT NULL,
+  pin_hash TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Catalog master
 CREATE TABLE IF NOT EXISTS items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,9 +90,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   type TEXT NOT NULL,
   occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
 
-  user_initials TEXT NOT NULL DEFAULT '',
-
-  employee_id INTEGER NOT NULL DEFAULT 0,
+  employee_id INTEGER,              -- FK added via migration; app enforces required
+user_initials TEXT NOT NULL DEFAULT ''
 
   vendor TEXT NOT NULL DEFAULT '',
   po_number TEXT NOT NULL DEFAULT '',
