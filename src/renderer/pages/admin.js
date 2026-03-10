@@ -30,6 +30,9 @@ export async function mountAdmin () {
   const btnCloseReceivesModal = document.getElementById('btnCloseReceivesModal')
   const receivesModal = document.getElementById('receivesModal')
 
+  let resetPinEmployeeId = null
+  let resetPinEmployeeName = ''
+
   const setMsg = (t, err = false) => {
     if (!msg) return
     msg.textContent = t || ''
@@ -66,15 +69,54 @@ export async function mountAdmin () {
       }
     })
 
+  const clearEmployeeFormState = () => {
+    resetPinEmployeeId = null
+    resetPinEmployeeName = ''
+
+    if (employeeName) {
+      employeeName.disabled = false
+      employeeName.value = ''
+    }
+
+    if (employeePin) {
+      employeePin.value = ''
+    }
+
+    if (btnAddEmployee) {
+      btnAddEmployee.textContent = 'Add Employee'
+    }
+  }
+
+  const beginResetPinFlow = (employeeId, name) => {
+    resetPinEmployeeId = employeeId
+    resetPinEmployeeName = String(name || '').trim()
+
+    if (employeeName) {
+      employeeName.value = resetPinEmployeeName
+      employeeName.disabled = true
+    }
+
+    if (employeePin) {
+      employeePin.value = ''
+      employeePin.focus()
+    }
+
+    if (btnAddEmployee) {
+      btnAddEmployee.textContent = 'Save PIN Reset'
+    }
+
+    setEmployeesMsg(`Enter a new PIN for ${resetPinEmployeeName}.`)
+  }
+
   const renderEmployees = rows => {
     if (!employeesTbody) return
 
     if (!Array.isArray(rows) || rows.length === 0) {
       employeesTbody.innerHTML = `
-      <tr>
-        <td colspan="3" class="muted">No employees found.</td>
-      </tr>
-    `
+        <tr>
+          <td colspan="3" class="muted">No employees found.</td>
+        </tr>
+      `
       return
     }
 
@@ -84,30 +126,31 @@ export async function mountAdmin () {
         const isActive = Number(row?.is_active) === 1
         const statusText = isActive ? 'Active' : 'Inactive'
         const toggleLabel = isActive ? 'Deactivate' : 'Reactivate'
+        const safeName = escapeHtml(row?.name)
 
         return `
-        <tr ${isActive ? '' : 'style="opacity:.55"'}>
-          <td>${escapeHtml(row?.name)}</td>
-          <td>${statusText}</td>
-          <td style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button
-              class="btn"
-              data-employee-toggle="${id}"
-              data-next-active="${isActive ? '0' : '1'}"
-            >
-              ${toggleLabel}
-            </button>
+          <tr ${isActive ? '' : 'style="opacity:.55"'}>
+            <td>${safeName}</td>
+            <td>${statusText}</td>
+            <td style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button
+                class="btn"
+                data-employee-toggle="${id}"
+                data-next-active="${isActive ? '0' : '1'}"
+              >
+                ${toggleLabel}
+              </button>
 
-            <button
-              class="btn"
-              data-employee-reset-pin="${id}"
-              data-employee-name="${escapeHtml(row?.name)}"
-            >
-              Reset PIN
-            </button>
-          </td>
-        </tr>
-      `
+              <button
+                class="btn"
+                data-employee-reset-pin="${id}"
+                data-employee-name="${safeName}"
+              >
+                Reset PIN
+              </button>
+            </td>
+          </tr>
+        `
       })
       .join('')
   }
@@ -130,12 +173,6 @@ export async function mountAdmin () {
     const name = String(employeeName?.value || '').trim()
     const pin = String(employeePin?.value || '').trim()
 
-    if (!name) {
-      setEmployeesMsg('Employee name is required.', true)
-      employeeName?.focus()
-      return
-    }
-
     if (!pin) {
       setEmployeesMsg('PIN is required.', true)
       employeePin?.focus()
@@ -145,25 +182,45 @@ export async function mountAdmin () {
     try {
       if (btnAddEmployee) btnAddEmployee.disabled = true
 
+      if (resetPinEmployeeId) {
+        await window.api.employeesSetPin({
+          employee_id: resetPinEmployeeId,
+          pin
+        })
+
+        setEmployeesMsg(`PIN updated for ${resetPinEmployeeName}.`)
+        clearEmployeeFormState()
+        await loadEmployees()
+        employeeName?.focus()
+        return
+      }
+
+      if (!name) {
+        setEmployeesMsg('Employee name is required.', true)
+        employeeName?.focus()
+        return
+      }
+
       await window.api.employeesCreate({ name, pin })
 
-      if (employeeName) employeeName.value = ''
-      if (employeePin) employeePin.value = ''
-
+      clearEmployeeFormState()
       setEmployeesMsg('Employee added.')
       await loadEmployees()
       employeeName?.focus()
     } catch (e) {
-      setEmployeesMsg(e?.message || 'Failed to add employee.', true)
+      setEmployeesMsg(
+        e?.message ||
+          (resetPinEmployeeId
+            ? 'Failed to reset PIN.'
+            : 'Failed to add employee.'),
+        true
+      )
     } finally {
       if (btnAddEmployee) btnAddEmployee.disabled = false
     }
   }
 
-  const handleEmployeeToggle = async e => {
-    const btn = e.target.closest('[data-employee-toggle]')
-    if (!btn) return
-
+  const handleEmployeeToggle = async btn => {
     const employeeId = Number(btn.dataset.employeeToggle)
     const nextActive = Number(btn.dataset.nextActive) === 1
 
@@ -180,40 +237,6 @@ export async function mountAdmin () {
       await loadEmployees()
     } catch (e) {
       setEmployeesMsg(e?.message || 'Failed to update employee.', true)
-      btn.disabled = false
-    }
-  }
-
-  const handleEmployeeResetPin = async e => {
-    const btn = e.target.closest('[data-employee-reset-pin]')
-    if (!btn) return
-
-    const employeeId = Number(btn.dataset.employeeResetPin)
-    const employeeName = String(btn.dataset.employeeName || 'Employee')
-
-    if (!employeeId) return
-
-    const nextPin = window.prompt(`Enter a new PIN for ${employeeName}:`)
-    if (nextPin == null) return
-
-    const pin = String(nextPin).trim()
-    if (!pin) {
-      setEmployeesMsg('PIN is required.', true)
-      return
-    }
-
-    setEmployeesMsg('')
-
-    try {
-      btn.disabled = true
-      await window.api.employeesSetPin({
-        employee_id: employeeId,
-        pin
-      })
-      setEmployeesMsg('PIN updated.')
-    } catch (e) {
-      setEmployeesMsg(e?.message || 'Failed to reset PIN.', true)
-    } finally {
       btn.disabled = false
     }
   }
@@ -247,20 +270,25 @@ export async function mountAdmin () {
   // Employees modal is custom so it can load rows on open
   if (btnOpenEmployeesModal && employeesModal) {
     btnOpenEmployeesModal.addEventListener('click', async () => {
+      clearEmployeeFormState()
       openModal(employeesModal)
       await loadEmployees()
     })
   }
 
   if (btnCloseEmployeesModal && employeesModal) {
-    btnCloseEmployeesModal.addEventListener('click', () =>
+    btnCloseEmployeesModal.addEventListener('click', () => {
+      clearEmployeeFormState()
       closeModal(employeesModal)
-    )
+    })
   }
 
   if (employeesModal) {
     employeesModal.addEventListener('click', e => {
-      if (e.target === employeesModal) closeModal(employeesModal)
+      if (e.target === employeesModal) {
+        clearEmployeeFormState()
+        closeModal(employeesModal)
+      }
     })
   }
 
@@ -269,11 +297,21 @@ export async function mountAdmin () {
   }
 
   if (employeesTbody) {
-    employeesTbody.addEventListener('click', handleEmployeeToggle)
-  }
+    employeesTbody.addEventListener('click', async e => {
+      const toggleBtn = e.target.closest('[data-employee-toggle]')
+      if (toggleBtn) {
+        await handleEmployeeToggle(toggleBtn)
+        return
+      }
 
-  if (employeesTbody) {
-    employeesTbody.addEventListener('click', handleEmployeeResetPin)
+      const resetBtn = e.target.closest('[data-employee-reset-pin]')
+      if (resetBtn) {
+        const employeeId = Number(resetBtn.dataset.employeeResetPin)
+        const name = String(resetBtn.dataset.employeeName || '').trim()
+        if (!employeeId) return
+        beginResetPinFlow(employeeId, name)
+      }
+    })
   }
 
   if (employeeName) {
@@ -303,6 +341,7 @@ export async function mountAdmin () {
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return
+    clearEmployeeFormState()
     closeModal(employeesModal)
     closeModal(locationsModal)
     closeModal(receivesModal)

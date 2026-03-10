@@ -1,6 +1,0 @@
-UI/UX: Admin Password prompt needs to be centered on app
-
-UI/UX: Alight input fields on receive page and fix "Ready: scan a location" rendered in the wrong card/not necessary or put at bottom of main page card. 
-
-UI/UX: In receive, scan location card visible and scan item not visible, once successful location scan, scan item card replaces scan location card. 
-
