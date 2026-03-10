@@ -6,101 +6,180 @@
     </div>
   </div>
 
-  <div class="card-block">
-    <div style="display: flex; flex-direction: column; gap: 14px">
-      <!-- Locations -->
-      <div>
-        <div class="lbl">Locations CSV</div>
-        <input
-          id="locCsvFile"
-          type="file"
-          accept=".csv"
-          style="display: none"
-        />
+  <div
+    style="
+      display: grid;
+      gap: 16px;
+      align-content: start;
+      max-width: 1120px;
+    "
+  >
+    <div class="card-block" style="padding: 18px 18px 16px">
+      <div class="card-title" style="margin-bottom: 14px">Admin Tools</div>
 
-        <div
-          style="
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-top: 8px;
-          "
-        >
-          <label for="locCsvFile" class="btn">Choose CSV</label>
-          <div
-            id="locCsvName"
-            class="msg"
-            style="margin: 0; opacity: 0.9; min-width: 160px"
-          >
-            No file selected
-          </div>
-          <button id="btnImportLocCsv" class="btn btn-primary" disabled>
-            Import
-          </button>
-        </div>
-      </div>
-
-      <!-- Receives -->
-      <div>
-        <div class="lbl">Bulk Receives CSV</div>
-        <input
-          id="recvCsvFile"
-          type="file"
-          accept=".csv"
-          style="display: none"
-        />
-
-        <div
-          style="
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-top: 8px;
-          "
-        >
-          <label for="recvCsvFile" class="btn">Choose CSV</label>
-          <div
-            id="recvCsvName"
-            class="msg"
-            style="margin: 0; opacity: 0.9; min-width: 160px"
-          >
-            No file selected
-          </div>
-
-          <button id="btnImportRecvCsv" class="btn btn-primary" disabled>
-            Import
-          </button>
-
-          <label
-            class="msg"
-            style="
-              margin: 0;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              user-select: none;
-              opacity: 0.9;
-            "
-          >
-            <input id="recvAutoCreate" type="checkbox" checked />
-            Auto-create missing
-          </label>
-        </div>
+      <div class="admin-tool-grid">
+        <button id="btnOpenEmployeesModal" class="btn">Employees</button>
+        <button id="btnOpenLocationsModal" class="btn">Import Locations</button>
+        <button id="btnOpenReceivesModal" class="btn">Import Receives</button>
       </div>
 
       <div id="adminToolsMsg" class="msg"></div>
     </div>
-  </div>
 
-  <div class="card-block">
-    <div class="card-title">Danger Zone</div>
-    <div class="quick-grid">
+    <div class="card-block" style="padding: 18px 18px 16px; max-width: 420px">
+      <div class="card-title" style="margin-bottom: 14px">Danger Zone</div>
+
       <button id="btnResetDb" class="btn btn-danger">
         Reset Database (wipe data)
       </button>
+
+      <div id="adminMsg" class="msg"></div>
     </div>
-    <div id="adminMsg" class="msg"></div>
+  </div>
+
+  <!-- Employees Modal -->
+  <div id="employeesModal" class="modal-overlay">
+    <div class="modal-panel modal-panel-lg">
+      <div class="modal-header">
+        <div>
+          <div class="card-title">Employees</div>
+          <div class="hint">Add, disable, reactivate, and reset PINs.</div>
+        </div>
+        <button id="btnCloseEmployeesModal" class="btn btn-quiet">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <section class="modal-section">
+          <div class="card-title">Add Employee</div>
+
+          <div class="employee-form">
+            <div class="form-field">
+              <div class="lbl">Employee Name</div>
+              <input
+                id="employeeName"
+                class="input"
+                type="text"
+                placeholder="e.g. John Smith"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="form-field form-field-pin">
+              <div class="lbl">PIN</div>
+              <input
+                id="employeePin"
+                class="input"
+                type="password"
+                inputmode="numeric"
+                placeholder="4+ digits"
+                autocomplete="new-password"
+              />
+            </div>
+
+            <div class="form-actions">
+              <button id="btnAddEmployee" class="btn btn-primary">
+                Add Employee
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="modal-section">
+          <div class="card-title">Employees List</div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 40%">Name</th>
+                  <th style="width: 20%">Status</th>
+                  <th style="width: 40%">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="employeesTbody">
+                <tr>
+                  <td colspan="3" class="muted">No employees found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="employeesMsg" class="msg"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Locations Modal -->
+  <div id="locationsModal" class="modal-overlay">
+    <div class="modal-panel modal-panel-md">
+      <div class="modal-header">
+        <div>
+          <div class="card-title">Import Locations</div>
+          <div class="hint">Upload a CSV to bulk-create location records.</div>
+        </div>
+        <button id="btnCloseLocationsModal" class="btn btn-quiet">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <section class="modal-section modal-section-compact">
+          <div class="card-title">Locations CSV</div>
+
+          <input
+            id="locCsvFile"
+            type="file"
+            accept=".csv"
+            style="display: none"
+          />
+
+          <div class="inline-actions">
+            <label for="locCsvFile" class="btn">Choose CSV</label>
+            <div id="locCsvName" class="msg inline-msg">No file selected</div>
+            <button id="btnImportLocCsv" class="btn btn-primary" disabled>
+              Import
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receives Modal -->
+  <div id="receivesModal" class="modal-overlay">
+    <div class="modal-panel modal-panel-md">
+      <div class="modal-header">
+        <div>
+          <div class="card-title">Import Receives</div>
+          <div class="hint">Upload receive rows for bulk intake.</div>
+        </div>
+        <button id="btnCloseReceivesModal" class="btn btn-quiet">Close</button>
+      </div>
+
+      <div class="modal-body">
+        <section class="modal-section modal-section-compact">
+          <div class="card-title">Bulk Receives CSV</div>
+
+          <input
+            id="recvCsvFile"
+            type="file"
+            accept=".csv"
+            style="display: none"
+          />
+
+          <div class="inline-actions">
+            <label for="recvCsvFile" class="btn">Choose CSV</label>
+            <div id="recvCsvName" class="msg inline-msg">No file selected</div>
+            <button id="btnImportRecvCsv" class="btn btn-primary" disabled>
+              Import
+            </button>
+
+            <label class="msg inline-check">
+              <input id="recvAutoCreate" type="checkbox" checked />
+              Auto-create missing
+            </label>
+          </div>
+        </section>
+      </div>
+    </div>
   </div>
 </div>
