@@ -89,13 +89,21 @@ export async function mountAdmin () {
         <tr ${isActive ? '' : 'style="opacity:.55"'}>
           <td>${escapeHtml(row?.name)}</td>
           <td>${statusText}</td>
-          <td>
+          <td style="display:flex; gap:8px; flex-wrap:wrap;">
             <button
               class="btn"
               data-employee-toggle="${id}"
               data-next-active="${isActive ? '0' : '1'}"
             >
               ${toggleLabel}
+            </button>
+
+            <button
+              class="btn"
+              data-employee-reset-pin="${id}"
+              data-employee-name="${escapeHtml(row?.name)}"
+            >
+              Reset PIN
             </button>
           </td>
         </tr>
@@ -166,12 +174,46 @@ export async function mountAdmin () {
     try {
       btn.disabled = true
       await window.api.employeesSetActive({
-        employeeId,
-        isActive: nextActive
+        id: employeeId,
+        is_active: nextActive ? 1 : 0
       })
       await loadEmployees()
     } catch (e) {
       setEmployeesMsg(e?.message || 'Failed to update employee.', true)
+      btn.disabled = false
+    }
+  }
+
+  const handleEmployeeResetPin = async e => {
+    const btn = e.target.closest('[data-employee-reset-pin]')
+    if (!btn) return
+
+    const employeeId = Number(btn.dataset.employeeResetPin)
+    const employeeName = String(btn.dataset.employeeName || 'Employee')
+
+    if (!employeeId) return
+
+    const nextPin = window.prompt(`Enter a new PIN for ${employeeName}:`)
+    if (nextPin == null) return
+
+    const pin = String(nextPin).trim()
+    if (!pin) {
+      setEmployeesMsg('PIN is required.', true)
+      return
+    }
+
+    setEmployeesMsg('')
+
+    try {
+      btn.disabled = true
+      await window.api.employeesSetPin({
+        employee_id: employeeId,
+        pin
+      })
+      setEmployeesMsg('PIN updated.')
+    } catch (e) {
+      setEmployeesMsg(e?.message || 'Failed to reset PIN.', true)
+    } finally {
       btn.disabled = false
     }
   }
@@ -228,6 +270,10 @@ export async function mountAdmin () {
 
   if (employeesTbody) {
     employeesTbody.addEventListener('click', handleEmployeeToggle)
+  }
+
+  if (employeesTbody) {
+    employeesTbody.addEventListener('click', handleEmployeeResetPin)
   }
 
   if (employeeName) {
