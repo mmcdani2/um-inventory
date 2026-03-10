@@ -148,6 +148,13 @@ export async function mountAdmin () {
               >
                 Reset PIN
               </button>
+              <button
+                class="btn btn-danger"
+                data-employee-delete="${id}"
+                data-employee-name="${safeName}"
+              >
+                Delete
+              </button>
             </td>
           </tr>
         `
@@ -310,6 +317,33 @@ export async function mountAdmin () {
         const name = String(resetBtn.dataset.employeeName || '').trim()
         if (!employeeId) return
         beginResetPinFlow(employeeId, name)
+      }
+
+      const deleteBtn = e.target.closest('[data-employee-delete]')
+      if (deleteBtn) {
+        const employeeId = Number(deleteBtn.dataset.employeeDelete)
+        const name = String(deleteBtn.dataset.employeeName || '').trim()
+        if (!employeeId) return
+
+        const ok = confirm(`Delete employee "${name}"? This cannot be undone.`)
+        if (!ok) return
+
+        try {
+          await window.api.employeesDelete(employeeId)
+          setEmployeesMsg(`Deleted employee: ${name || `#${employeeId}`}`)
+          await loadEmployees()
+        } catch (err) {
+          const msg = String(err?.message || '')
+            .replace(
+              /^Error invoking remote method 'employees:delete':\s*/i,
+              ''
+            )
+            .replace(/^Error:\s*/i, '')
+            .trim()
+
+          setEmployeesMsg(msg || 'Failed to delete employee.', true)
+        }
+        return
       }
     })
   }

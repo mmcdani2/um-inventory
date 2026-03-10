@@ -1,0 +1,17 @@
+Fixes/Features for Inventory
+
+Feat: Add more kpis like fastest movers, longest on shelf, etc.  
+
+Feat: Install app actually does something even if it's give instructions on how to do it. 
+
+Feat: Make program remember which screen it was open on last.
+
+Fix: Should probably have an "add manually button for new items with no barcode/used items.
+
+Fix: Be able to delete items from the items table.
+
+Fix: kpiSkus is not defined alert upon successful csv upload in admin panel. and finalize batch too.
+
+Feat: Auto add new vendors to db when a new item is added so that it can auto suggest as the db grows and the user is typing. 
+ 
+

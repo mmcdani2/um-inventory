@@ -24,6 +24,9 @@ export async function mountReceive () {
   const qtyOverrideEnabled = document.getElementById('qtyOverrideEnabled')
   const qtyOverrideInput = document.getElementById('qtyOverrideInput')
 
+  // Manual add
+  const btnManualCreate = document.getElementById('btnManualCreate')
+
   // Lines + actions
   const receiveLinesList = document.getElementById('receiveLinesList')
   const emptyLinesHint = document.getElementById('emptyLinesHint')
@@ -198,6 +201,7 @@ export async function mountReceive () {
 
     // tiny change-location allowed only before any lines exist
     if (btnChangeLocation) btnChangeLocation.hidden = !hasLoc || hasLines
+    if (btnManualCreate) btnManualCreate.disabled = !hasLoc || smartAddIsOpen()
   }
 
   function syncFinalizeEnabled () {
@@ -526,14 +530,11 @@ export async function mountReceive () {
     receiveEmployeeId.innerHTML = '<option value="">Select…</option>'
     for (const e of employees) {
       if (!e || !e.id) continue
+      if (Number(e.is_active) === 0) continue
 
       const opt = document.createElement('option')
       opt.value = String(e.id)
-
-      const inactive = Number(e.is_active) === 0
-      opt.textContent = inactive ? `${e.name} (inactive)` : e.name
-
-      if (inactive) opt.disabled = true
+      opt.textContent = e.name
 
       receiveEmployeeId.appendChild(opt)
     }
@@ -554,6 +555,24 @@ export async function mountReceive () {
         String(receiveEmployeeId.value || '')
       )
     } catch {}
+  })
+
+  // Manual create logic
+  btnManualCreate?.addEventListener('click', async () => {
+    if (!activeLoc || smartAddIsOpen()) return
+    await openSmartAdd('', getQtyForThisScan())
+    smartAddBarcode.value = ''
+    smartAddSku.value = ''
+    smartAddDescription.value = ''
+    smartAddCategory.value = ''
+    smartAddUnit.value = 'EA'
+    smartAddVendor.value = ''
+    smartAddDefaultCost.value = '0'
+    smartAddReorderPoint.value = '0'
+    smartAddReorderQty.value = '0'
+    if (smartAddPrintLabel) smartAddPrintLabel.checked = true
+    setErr(smartAddStatus, '')
+    focusSelect(smartAddSku)
   })
 
   // ---------- load ----------
@@ -746,10 +765,7 @@ export async function mountReceive () {
     const description = String(smartAddDescription.value || '').trim()
 
     try {
-      if (!vendorBarcode) {
-        setErr(smartAddStatus, 'Barcode is required.')
-        return
-      }
+      const hasVendorBarcode = !!vendorBarcode
 
       // Attach mode: require selection; SKU/Description not required.
       if (smartAddMode() === 'attach') {
@@ -796,11 +812,13 @@ export async function mountReceive () {
         if (!target)
           throw new Error('Selected item not found. Refresh and try again.')
 
-        await window.api.itemsAttachBarcode({
-          item_id: targetId,
-          barcode: vendorBarcode,
-          source: 'vendor'
-        })
+        if (hasVendorBarcode) {
+          await window.api.itemsAttachBarcode({
+            item_id: target.id,
+            barcode: vendorBarcode,
+            source: 'vendor'
+          })
+        }
         await refreshItems()
         await refreshEmployees()
         addScan(target, smartAddPendingQty)
@@ -840,11 +858,13 @@ export async function mountReceive () {
       if (!createdItem)
         throw new Error('Item created, but could not re-load it.')
 
-      await window.api.itemsAttachBarcode({
-        item_id: createdItem.id,
-        barcode: vendorBarcode,
-        source: 'vendor'
-      })
+      if (hasVendorBarcode) {
+        await window.api.itemsAttachBarcode({
+          item_id: createdItem.id,
+          barcode: vendorBarcode,
+          source: 'vendor'
+        })
+      }
 
       addScan(createdItem, smartAddPendingQty)
 
@@ -933,6 +953,7 @@ export async function mountReceive () {
 
   // ---------- init ----------
   await loadData()
+  await refreshEmployees()
   syncQtyOverrideEnabled()
   renderLines()
   setActiveLocation(null)

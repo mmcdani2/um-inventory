@@ -102,9 +102,11 @@ contextBridge.exposeInMainWorld('api', {
   employeesCreate: payload => ipcRenderer.invoke('employees:create', payload),
   employeesSetPin: payload => ipcRenderer.invoke('employees:setPin', payload),
   employeesSetActive: payload =>
-    ipcRenderer.invoke('employees:setActive', payload), 
+    ipcRenderer.invoke('employees:setActive', payload),
 
   authLogin: payload => ipcRenderer.invoke('auth:login', payload),
   authGetSession: () => ipcRenderer.invoke('auth:getSession'),
-  authLogout: () => ipcRenderer.invoke('auth:logout')
+  authLogout: () => ipcRenderer.invoke('auth:logout'),
+  employeesDelete: employeeId =>
+    ipcRenderer.invoke('employees:delete', employeeId)
 })
