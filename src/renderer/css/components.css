@@ -303,12 +303,12 @@
 }
 
 /* Hide number spinners (cleaner UI) */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type="number"] {
+input[type='number'] {
   -moz-appearance: textfield;
 }
 
@@ -543,62 +543,83 @@ input[type="number"] {
   }
 }
 
-.modal.hidden{ display:none; }
+.hidden {
+  display: none !important;
+}
 
-.modal{
+.modal.hidden {
+  display: none !important;
+}
+
+.modal {
   position: fixed;
   inset: 0;
   z-index: 5000;
 }
 
-.modal-backdrop{
-  position: absolute;
+.modal-backdrop {
+  position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  z-index: 6000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  overflow: auto;
 }
 
-.modal-card{
+.modal-card {
   position: relative;
-  margin: 60px auto;
-  max-width: 860px;
+  z-index: 6001;
+  width: min(860px, 100%);
+  margin: 36px auto;
   padding: 14px;
-  background: rgba(15,22,32,.96);
+  background: rgba(15, 22, 32, 0.98);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow);
 }
 
 .modal-head,
-.modal-foot{
+.modal-foot {
   display: flex;
   gap: 10px;
   padding: 6px 4px;
 }
 
-.modal-head{
+.modal-head {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 10px;
 }
 
-.modal-title{ font-weight: 700; }
+.modal-title {
+  font-weight: 700;
+}
 
-.modal-body{ padding: 6px 4px 10px; }
+.modal-body {
+  padding: 6px 4px 10px;
+}
 
-.modal-foot{ justify-content: flex-end; }
+.modal-foot {
+  justify-content: flex-end;
+}
 
 /* Edit modal form layout */
-.edit-grid{
-  display:grid;
+.edit-grid {
+  display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 14px;
 }
 
-.edit-grid .span-2{ grid-column: 1 / -1; }
+.edit-grid .span-2 {
+  grid-column: 1 / -1;
+}
 
-.modal-actions{
-  display:flex;
-  justify-content:flex-end;
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 14px;
   padding-top: 12px;
@@ -606,18 +627,18 @@ input[type="number"] {
 }
 
 /* Reports segmented tabs */
-.tabs{
-  display:inline-flex;
-  border:1px solid var(--border);
+.tabs {
+  display: inline-flex;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  overflow:hidden;
-  background: rgba(15,22,32,.55);
+  overflow: hidden;
+  background: rgba(15, 22, 32, 0.55);
   margin-bottom: 12px; /* fixes squish vs table header */
 }
 
-.tab{
+.tab {
   appearance: none;
-  border:0;
+  border: 0;
   background: transparent;
   color: var(--muted);
   padding: 8px 12px;
@@ -625,22 +646,21 @@ input[type="number"] {
   cursor: pointer;
 }
 
-.tab:hover{
-  background: rgba(227,179,65,.10);
+.tab:hover {
+  background: rgba(227, 179, 65, 0.1);
   color: var(--text);
 }
 
-.tab.active{
-  background: rgba(227,179,65,.18);
+.tab.active {
+  background: rgba(227, 179, 65, 0.18);
   color: var(--text);
 }
 
 /* Danger button — matches the red used in Receive banner */
-.btn-danger{
-  border-color: rgba(239,68,68,.55);
-  background: rgba(239,68,68,.10);
+.btn-danger {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.1);
 }
-.btn-danger:hover{
-  background: rgba(239,68,68,.18);
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.18);
 }
-
