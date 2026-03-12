@@ -1,4 +1,4 @@
-export async function mountCounts () {
+﻿export async function mountCounts () {
   const msg = document.getElementById('kMsg')
   const hint = document.getElementById('kHint')
   const queueHint = document.getElementById('kQueueHint')
@@ -7,7 +7,6 @@ export async function mountCounts () {
   const activeAreaFooter = document.getElementById('kActiveAreaFooter')
 
   const btnBuildCounts = document.getElementById('kBuildCounts')
-  const btnReorderCounts = document.getElementById('kReorderCounts')
   const btnPrintSheets = document.getElementById('kPrintSheets')
   const btnStartCount = document.getElementById('kStartCount')
   const btnFinalizeCounts = document.getElementById('kFinalizeCounts')
@@ -19,15 +18,19 @@ export async function mountCounts () {
 
   const kBuildModal = document.getElementById('kBuildModal')
   const kBuildModalClose = document.getElementById('kBuildModalClose')
+  const kBuildScan = document.getElementById('kBuildScan')
   const kBuildSearch = document.getElementById('kBuildSearch')
-  const kBuildSelectAll = document.getElementById('kBuildSelectAll')
+  const kBuildSelectVisible = document.getElementById('kBuildSelectVisible')
+  const kBuildClearVisible = document.getElementById('kBuildClearVisible')
   const kBuildBody = document.getElementById('kBuildBody')
-  const kBuildApply = document.getElementById('kBuildApply')
 
-  const kReorderModal = document.getElementById('kReorderModal')
-  const kReorderModalClose = document.getElementById('kReorderModalClose')
-  const kReorderBody = document.getElementById('kReorderBody')
-  const kReorderDone = document.getElementById('kReorderDone')
+  const kNewGroupName = document.getElementById('kNewGroupName')
+  const kAddGroup = document.getElementById('kAddGroup')
+  const kAddSelectedToGroup = document.getElementById('kAddSelectedToGroup')
+  const kAddLooseLocations = document.getElementById('kAddLooseLocations')
+  const kTargetGroup = document.getElementById('kTargetGroup')
+  const kTreeBody = document.getElementById('kTreeBody')
+  const kBuildApply = document.getElementById('kBuildApply')
 
   const missing = []
   for (const [id, el] of [
@@ -38,7 +41,6 @@ export async function mountCounts () {
     ['kEntryView', entryView],
     ['kActiveAreaFooter', activeAreaFooter],
     ['kBuildCounts', btnBuildCounts],
-    ['kReorderCounts', btnReorderCounts],
     ['kPrintSheets', btnPrintSheets],
     ['kStartCount', btnStartCount],
     ['kFinalizeCounts', btnFinalizeCounts],
@@ -48,14 +50,18 @@ export async function mountCounts () {
     ['#kTable tbody', tbody],
     ['kBuildModal', kBuildModal],
     ['kBuildModalClose', kBuildModalClose],
+    ['kBuildScan', kBuildScan],
     ['kBuildSearch', kBuildSearch],
-    ['kBuildSelectAll', kBuildSelectAll],
+    ['kBuildSelectVisible', kBuildSelectVisible],
+    ['kBuildClearVisible', kBuildClearVisible],
     ['kBuildBody', kBuildBody],
-    ['kBuildApply', kBuildApply],
-    ['kReorderModal', kReorderModal],
-    ['kReorderModalClose', kReorderModalClose],
-    ['kReorderBody', kReorderBody],
-    ['kReorderDone', kReorderDone]
+    ['kNewGroupName', kNewGroupName],
+    ['kAddGroup', kAddGroup],
+    ['kAddSelectedToGroup', kAddSelectedToGroup],
+    ['kAddLooseLocations', kAddLooseLocations],
+    ['kTargetGroup', kTargetGroup],
+    ['kTreeBody', kTreeBody],
+    ['kBuildApply', kBuildApply]
   ]) {
     if (!el) missing.push(id)
   }
@@ -65,10 +71,11 @@ export async function mountCounts () {
   let items = []
   let onhandRows = []
 
-  let queue = []
-  let activeAreaCode = null
+  let structure = []
+  let draftTree = []
   let buildSelectedIds = new Set()
-  let draggedQueueCode = null
+  let activeLocationCode = null
+  let draggedTreeKey = null
 
   function setMsg (text, err = false) {
     msg.textContent = text || ''
@@ -76,17 +83,17 @@ export async function mountCounts () {
   }
 
   function escapeHtml (s) {
-    return String(s ?? '').replace(
-      /[&<>"']/g,
-      c =>
-        ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }[c])
-    )
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c]))
+  }
+
+  function normalizeName (value) {
+    return String(value || '').trim().toUpperCase()
   }
 
   function itemBySkuMap () {
@@ -112,72 +119,231 @@ export async function mountCounts () {
     entryView.classList.remove('hidden')
   }
 
-  function getQueueArea (code) {
-    return queue.find(q => q.code === code) || null
+  function syncButtons () {
+    const hasLocations = flattenStructureLocations(structure).length > 0
+    const hasRows = !!tbody.querySelector('tr')
+
+    btnPrintSheets.disabled = !hasLocations
+    btnStartCount.disabled = !hasLocations
+    btnFinalizeCounts.disabled = !hasLocations
+    btnSave.disabled = !hasRows
   }
 
-  function syncButtons () {
-    const hasQueue = queue.length > 0
-    const hasActiveRows = !!tbody.querySelector('tr')
+  function makeGroupNode (name) {
+    const clean = normalizeName(name)
+    return {
+      key: `group:${clean}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`,
+      type: 'group',
+      name: clean,
+      children: []
+    }
+  }
 
-    btnReorderCounts.disabled = !hasQueue
-    btnPrintSheets.disabled = !hasQueue
-    btnStartCount.disabled = !hasQueue
-    btnFinalizeCounts.disabled = !hasQueue
-    btnSave.disabled = !hasActiveRows
+  function makeLocationNode (loc) {
+    return {
+      key: `location:${loc.id}`,
+      type: 'location',
+      id: Number(loc.id),
+      code: String(loc.code || ''),
+      name: loc.name ? `${loc.code} — ${loc.name}` : String(loc.code || '')
+    }
+  }
+
+  function flattenStructureLocations (tree) {
+    const out = []
+    for (const node of tree) {
+      if (node.type === 'location') out.push(node)
+      if (node.type === 'group' && Array.isArray(node.children)) out.push(...node.children)
+    }
+    return out
+  }
+
+  function refreshTargetGroupOptions () {
+    const groups = draftTree.filter(n => n.type === 'group')
+    kTargetGroup.innerHTML =
+      `<option value="">Select group...</option>` +
+      groups.map(g => `<option value="${escapeHtml(g.key)}">${escapeHtml(g.name)}</option>`).join('')
   }
 
   function renderQueue () {
-    if (!queue.length) {
+    if (!structure.length) {
       queueBody.innerHTML = `
         <tr>
-          <td colspan="3" class="hint">No count queue built yet.</td>
+          <td colspan="4" class="hint">No count structure built yet.</td>
         </tr>
       `
-      queueHint.textContent = 'No areas selected yet.'
-      activeAreaFooter.textContent = 'No active area'
-      activeAreaCode = null
+      queueHint.textContent = 'No count structure built yet.'
+      activeAreaFooter.textContent = 'No active location'
+      activeLocationCode = null
       clearEntryTable()
       showQueueView()
       syncButtons()
       return
     }
 
-    queueBody.innerHTML = queue
-      .map((area, idx) => {
-        const isActive = area.code === activeAreaCode
-        const status = isActive ? 'Active' : (area.status || 'Queued')
-        return `
-          <tr data-queue-row="${escapeHtml(area.code)}">
-            <td>${idx + 1}</td>
+    const rows = []
+    let idx = 1
+
+    for (const node of structure) {
+      if (node.type === 'group') {
+        rows.push(`
+          <tr data-structure-key="${escapeHtml(node.key)}">
+            <td>${idx++}</td>
+            <td>Group</td>
+            <td>${escapeHtml(node.name)}</td>
+            <td>Ready</td>
+          </tr>
+        `)
+
+        for (const child of node.children || []) {
+          const isActive = child.code === activeLocationCode
+          rows.push(`
+            <tr data-structure-key="${escapeHtml(child.key)}">
+              <td>${idx++}</td>
+              <td>Location</td>
+              <td>
+                <button
+                  class="btn btn-ghost"
+                  type="button"
+                  data-load-location="${escapeHtml(child.code)}"
+                  style="width: 100%; text-align: left; justify-content: flex-start;"
+                >
+                  ${escapeHtml(node.name)} / ${escapeHtml(child.name)}
+                </button>
+              </td>
+              <td>${escapeHtml(isActive ? 'Active' : 'Ready')}</td>
+            </tr>
+          `)
+        }
+      } else if (node.type === 'location') {
+        const isActive = node.code === activeLocationCode
+        rows.push(`
+          <tr data-structure-key="${escapeHtml(node.key)}">
+            <td>${idx++}</td>
+            <td>Location</td>
             <td>
               <button
                 class="btn btn-ghost"
                 type="button"
-                data-load-queue="${escapeHtml(area.code)}"
+                data-load-location="${escapeHtml(node.code)}"
                 style="width: 100%; text-align: left; justify-content: flex-start;"
               >
-                ${escapeHtml(area.label)}
+                ${escapeHtml(node.name)}
               </button>
             </td>
-            <td>${escapeHtml(status)}</td>
+            <td>${escapeHtml(isActive ? 'Active' : 'Ready')}</td>
           </tr>
-        `
-      })
-      .join('')
+        `)
+      }
+    }
 
-    queueHint.textContent = `${queue.length} area(s) in queue.`
-    activeAreaFooter.textContent = activeAreaCode
-      ? `Active area: ${getQueueArea(activeAreaCode)?.label || activeAreaCode}`
-      : 'No active area'
+    queueBody.innerHTML = rows.join('')
+    const totalLocs = flattenStructureLocations(structure).length
+    queueHint.textContent = `${totalLocs} count location(s) in structure.`
+    activeAreaFooter.textContent = activeLocationCode
+      ? `Active location: ${activeLocationCode}`
+      : 'No active location'
 
     syncButtons()
   }
 
+  function visibleLocations (filter = '') {
+    const q = String(filter || '').trim().toLowerCase()
+    const usedIds = new Set(flattenStructureLocations(draftTree).map(n => Number(n.id)))
+
+    return locations
+      .slice()
+      .sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')))
+      .filter(loc => !usedIds.has(Number(loc.id)))
+      .filter(loc => {
+        if (!q) return true
+        const hay = `${loc.code || ''} ${loc.name || ''}`.toLowerCase()
+        return hay.includes(q)
+      })
+  }
+
+  function renderBuildRows (filter = '') {
+    const rows = visibleLocations(filter)
+    if (!rows.length) {
+      kBuildBody.innerHTML = `
+        <tr>
+          <td colspan="2" class="hint">No locations found.</td>
+        </tr>
+      `
+      return
+    }
+
+    kBuildBody.innerHTML = rows.map(loc => {
+      const checked = buildSelectedIds.has(Number(loc.id)) ? 'checked' : ''
+      const label = loc.name ? `${loc.code} — ${loc.name}` : loc.code
+      return `
+        <tr>
+          <td><input type="checkbox" data-build-pick="${loc.id}" ${checked} /></td>
+          <td>${escapeHtml(label)}</td>
+        </tr>
+      `
+    }).join('')
+  }
+
+  function renderDraftTree () {
+    if (!draftTree.length) {
+      kTreeBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="hint">No groups or locations in the count tree yet.</td>
+        </tr>
+      `
+      refreshTargetGroupOptions()
+      return
+    }
+
+    const rows = []
+    let idx = 1
+
+    for (const node of draftTree) {
+      if (node.type === 'group') {
+        rows.push(`
+          <tr data-tree-key="${escapeHtml(node.key)}" draggable="true">
+            <td>${idx++}</td>
+            <td>Group</td>
+            <td>${escapeHtml(node.name)}</td>
+            <td class="hint">Drag to reorder</td>
+          </tr>
+        `)
+
+        for (const child of node.children || []) {
+          rows.push(`
+            <tr data-tree-key="${escapeHtml(child.key)}">
+              <td>${idx++}</td>
+              <td>Location</td>
+              <td style="padding-left: 28px;">${escapeHtml(child.name)}</td>
+              <td class="hint">In group</td>
+            </tr>
+          `)
+        }
+      } else {
+        rows.push(`
+          <tr data-tree-key="${escapeHtml(node.key)}" draggable="true">
+            <td>${idx++}</td>
+            <td>Location</td>
+            <td>${escapeHtml(node.name)}</td>
+            <td class="hint">Top-level</td>
+          </tr>
+        `)
+      }
+    }
+
+    kTreeBody.innerHTML = rows.join('')
+    refreshTargetGroupOptions()
+  }
+
   function openBuildModal () {
-    buildSelectedIds = new Set(queue.map(q => Number(q.id)))
+    draftTree = structuredClone(structure)
+    buildSelectedIds = new Set()
     kBuildSearch.value = ''
+    kBuildScan.value = ''
+    kNewGroupName.value = ''
     renderBuildRows('')
+    renderDraftTree()
     kBuildModal.classList.remove('hidden')
     kBuildModal.setAttribute('aria-hidden', 'false')
     kBuildSearch.focus()
@@ -188,123 +354,72 @@ export async function mountCounts () {
     kBuildModal.setAttribute('aria-hidden', 'true')
   }
 
-  function renderBuildRows (filter = '') {
-    const q = String(filter || '').trim().toLowerCase()
-
-    const rows = locations
-      .slice()
-      .sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')))
-      .filter(loc => {
-        if (!q) return true
-        const hay = `${loc.code || ''} ${loc.name || ''}`.toLowerCase()
-        return hay.includes(q)
-      })
-
-    if (!rows.length) {
-      kBuildBody.innerHTML = `
-        <tr>
-          <td colspan="2" class="hint">No areas found.</td>
-        </tr>
-      `
-      return
+  function addGroup () {
+    const name = normalizeName(kNewGroupName.value)
+    if (!name) return setMsg('Group name required.', true)
+    if (draftTree.some(n => n.type === 'group' && n.name === name)) {
+      return setMsg('Group already exists.', true)
     }
 
-    kBuildBody.innerHTML = rows
-      .map(loc => {
-        const checked = buildSelectedIds.has(Number(loc.id)) ? 'checked' : ''
-        const label = loc.name ? `${loc.code} — ${loc.name}` : loc.code
-        return `
-          <tr>
-            <td><input type="checkbox" data-build-pick="${loc.id}" ${checked} /></td>
-            <td>${escapeHtml(label)}</td>
-          </tr>
-        `
-      })
-      .join('')
+    draftTree.push(makeGroupNode(name))
+    kNewGroupName.value = ''
+    renderDraftTree()
+    setMsg(`Added group ${name}.`)
   }
 
-  function openReorderModal () {
-    renderReorderRows()
-    kReorderModal.classList.remove('hidden')
-    kReorderModal.setAttribute('aria-hidden', 'false')
+  function selectedLocationObjects () {
+    return locations.filter(loc => buildSelectedIds.has(Number(loc.id)))
   }
 
-  function closeReorderModal () {
-    kReorderModal.classList.add('hidden')
-    kReorderModal.setAttribute('aria-hidden', 'true')
-  }
+  function addSelectedToGroup () {
+    const targetKey = String(kTargetGroup.value || '')
+    if (!targetKey) return setMsg('Select a target group.', true)
 
-  function renderReorderRows () {
-    if (!queue.length) {
-      kReorderBody.innerHTML = `
-        <tr>
-          <td colspan="3" class="hint">No areas in queue.</td>
-        </tr>
-      `
-      return
+    const group = draftTree.find(n => n.type === 'group' && n.key === targetKey)
+    if (!group) return setMsg('Target group not found.', true)
+
+    const selected = selectedLocationObjects()
+    if (!selected.length) return setMsg('Select at least one visible location.', true)
+
+    for (const loc of selected) {
+      group.children.push(makeLocationNode(loc))
+      buildSelectedIds.delete(Number(loc.id))
     }
 
-    kReorderBody.innerHTML = queue
-      .map((area, idx) => `
-        <tr data-reorder-code="${escapeHtml(area.code)}" draggable="true">
-          <td>${idx + 1}</td>
-          <td>${escapeHtml(area.label)}</td>
-          <td class="hint">Drag to reorder</td>
-        </tr>
-      `)
-      .join('')
+    renderBuildRows(kBuildSearch.value)
+    renderDraftTree()
+    setMsg(`Added ${selected.length} location(s) to ${group.name}.`)
   }
 
-  function reorderQueue (fromCode, toCode) {
-    if (!fromCode || !toCode || fromCode === toCode) return
+  function addSelectedAsTopLevel () {
+    const selected = selectedLocationObjects()
+    if (!selected.length) return setMsg('Select at least one visible location.', true)
 
-    const fromIdx = queue.findIndex(q => q.code === fromCode)
-    const toIdx = queue.findIndex(q => q.code === toCode)
-    if (fromIdx === -1 || toIdx === -1) return
+    for (const loc of selected) {
+      draftTree.push(makeLocationNode(loc))
+      buildSelectedIds.delete(Number(loc.id))
+    }
 
-    const [moved] = queue.splice(fromIdx, 1)
-    queue.splice(toIdx, 0, moved)
+    renderBuildRows(kBuildSearch.value)
+    renderDraftTree()
+    setMsg(`Added ${selected.length} top-level location(s).`)
+  }
 
-    renderReorderRows()
+  function applyStructure () {
+    structure = structuredClone(draftTree)
+    closeBuildModal()
     renderQueue()
+    setMsg(structure.length ? 'Count structure applied.' : 'No count structure built.')
   }
 
-  function buildQueueFromSelectedIds () {
-    const selected = locations
-      .filter(loc => buildSelectedIds.has(Number(loc.id)))
-      .sort((a, b) => String(a.code || '').localeCompare(String(b.code || '')))
-
-    const oldByCode = new Map(queue.map(q => [q.code, q]))
-
-    queue = selected.map(loc => {
-      const code = String(loc.code || '')
-      const existing = oldByCode.get(code)
-      return {
-        id: loc.id,
-        code,
-        label: loc.name ? `${loc.code} — ${loc.name}` : loc.code,
-        status: existing?.status || 'Queued'
-      }
-    })
-
-    if (activeAreaCode && !queue.some(q => q.code === activeAreaCode)) {
-      activeAreaCode = null
-      clearEntryTable()
-      hint.textContent = 'Active area loaded for counting.'
-      showQueueView()
-    }
-
-    renderQueue()
-  }
-
-  function rowsForAreaCode (areaCode) {
+  function rowsForLocationCode (locationCode) {
     const locByCode = locByCodeMap()
     const itemBySku = itemBySkuMap()
-    const loc = locByCode.get(String(areaCode || ''))
+    const loc = locByCode.get(String(locationCode || ''))
     if (!loc) return []
 
     return onhandRows
-      .filter(r => String(r.location_code || '') === String(areaCode))
+      .filter(r => String(r.location_code || '') === String(locationCode))
       .map(r => ({
         sku: String(r.sku || ''),
         expected: Number(r.on_hand || 0),
@@ -349,49 +464,60 @@ export async function mountCounts () {
     })
   }
 
-  function loadAreaIntoEntry (areaCode) {
-    const area = getQueueArea(areaCode)
-    if (!area) return setMsg('Area not found in queue.', true)
-
-    const rows = rowsForAreaCode(area.code)
-    activeAreaCode = area.code
+  function loadLocationIntoEntry (locationCode) {
+    const rows = rowsForLocationCode(locationCode)
+    activeLocationCode = String(locationCode || '')
 
     tbody.innerHTML = rows.map(r => rowHtml(r.item, r.expected, r.location.code)).join('')
     bindVarianceInputs()
 
     hint.textContent = rows.length
-      ? `Loaded ${rows.length} row(s) for ${area.label}.`
-      : `No inventory found for ${area.label}.`
+      ? `Loaded ${rows.length} row(s) for ${activeLocationCode}.`
+      : `No inventory found for ${activeLocationCode}.`
 
-    queue = queue.map(q => ({
-      ...q,
-      status:
-        q.code === area.code
-          ? 'In Progress'
-          : q.status === 'In Progress'
-            ? 'Queued'
-            : q.status
-    }))
-
-    activeAreaFooter.textContent = `Active area: ${area.label}`
+    activeAreaFooter.textContent = `Active location: ${activeLocationCode}`
     renderQueue()
     showEntryView()
     syncButtons()
 
-    const firstInput = tbody.querySelector('input[data-actual]')
-    firstInput?.focus()
+    tbody.querySelector('input[data-actual]')?.focus()
   }
 
-  async function printQueueSheets () {
-    setMsg('')
-    if (!queue.length) return setMsg('Build the count queue first.', true)
+  function orderedPrintSections () {
+    const sections = []
 
-    const sections = queue
-      .map(area => {
-        const rows = rowsForAreaCode(area.code)
+    for (const node of structure) {
+      if (node.type === 'group') {
+        sections.push({
+          heading: node.name,
+          locations: (node.children || []).map(child => child.code)
+        })
+      } else if (node.type === 'location') {
+        sections.push({
+          heading: '',
+          locations: [node.code]
+        })
+      }
+    }
+
+    return sections
+  }
+
+  async function printSheets () {
+    setMsg('')
+    const sections = orderedPrintSections()
+    if (!sections.length) return setMsg('Build the count structure first.', true)
+
+    const html = sections.map(section => {
+      const heading = section.heading
+        ? `<h1>Group: ${escapeHtml(section.heading)}</h1>`
+        : ''
+
+      const blocks = section.locations.map(code => {
+        const rows = rowsForLocationCode(code)
         return `
           <div class="sheet">
-            <h2>${escapeHtml(area.label)}</h2>
+            <h2>${escapeHtml(code)}</h2>
             <table>
               <thead>
                 <tr>
@@ -418,8 +544,10 @@ export async function mountCounts () {
             </table>
           </div>
         `
-      })
-      .join('')
+      }).join('')
+
+      return `${heading}${blocks}`
+    }).join('')
 
     const w = window.open('', '_blank', 'width=1200,height=900')
     if (!w) return setMsg('Popup blocked. Allow popups and try again.', true)
@@ -430,9 +558,8 @@ export async function mountCounts () {
           <title>Inventory Count Sheets</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-            h1 { margin: 0 0 12px; font-size: 24px; }
+            h1 { margin: 0 0 12px; font-size: 22px; }
             h2 { margin: 0 0 10px; font-size: 18px; }
-            .meta { margin: 0 0 18px; font-size: 12px; color: #444; }
             .sheet { page-break-after: always; margin-bottom: 28px; }
             table { width: 100%; border-collapse: collapse; table-layout: fixed; }
             th, td { border: 1px solid #222; padding: 8px; font-size: 12px; vertical-align: top; }
@@ -441,11 +568,7 @@ export async function mountCounts () {
             .right { text-align: right; }
           </style>
         </head>
-        <body>
-          <h1>Inventory Count Sheets</h1>
-          <div class="meta">Queue: ${escapeHtml(queue.map(q => q.code).join(', '))}</div>
-          ${sections}
-        </body>
+        <body>${html}</body>
       </html>
     `)
     w.document.close()
@@ -453,19 +576,18 @@ export async function mountCounts () {
     w.print()
   }
 
-  async function saveCountsForActiveArea () {
+  async function saveCountsForActiveLocation () {
     setMsg('')
 
-    if (!activeAreaCode) return setMsg('Start a count first.', true)
+    if (!activeLocationCode) return setMsg('Start a count first.', true)
 
     const trs = Array.from(tbody.querySelectorAll('tr'))
     if (!trs.length) return setMsg('No active count rows loaded.', true)
 
     const itemsNow = await window.api.itemsList()
     const itemIdBySku = new Map(itemsNow.map(i => [String(i.sku), i.id]))
-    const loc = locByCodeMap().get(String(activeAreaCode || ''))
-
-    if (!loc) return setMsg('Active area not found.', true)
+    const loc = locByCodeMap().get(String(activeLocationCode || ''))
+    if (!loc) return setMsg('Active location not found.', true)
 
     const toSave = []
 
@@ -503,24 +625,30 @@ export async function mountCounts () {
           location_id: row.location_id,
           item_id: row.item_id,
           actual_qty: row.actual_qty,
-          notes: `Count queue area ${activeAreaCode}`
+          notes: `Count structure location ${activeLocationCode}`
         })
       }
 
-      queue = queue.map(q => ({
-        ...q,
-        status: q.code === activeAreaCode ? 'Counted' : q.status
-      }))
-
-      setMsg(`Saved ${toSave.length} count(s) for ${activeAreaCode}.`)
-      renderQueue()
+      setMsg(`Saved ${toSave.length} count(s) for ${activeLocationCode}.`)
       showQueueView()
+      renderQueue()
       window.dispatchEvent(new CustomEvent('data:changed'))
     } catch (e) {
       setMsg(e?.message || 'Failed saving counts.', true)
     } finally {
       btnSave.disabled = false
     }
+  }
+
+  function moveDraftTopLevel (fromKey, toKey) {
+    if (!fromKey || !toKey || fromKey === toKey) return
+    const fromIdx = draftTree.findIndex(n => n.key === fromKey)
+    const toIdx = draftTree.findIndex(n => n.key === toKey)
+    if (fromIdx === -1 || toIdx === -1) return
+
+    const [moved] = draftTree.splice(fromIdx, 1)
+    draftTree.splice(toIdx, 0, moved)
+    renderDraftTree()
   }
 
   async function loadData () {
@@ -531,74 +659,108 @@ export async function mountCounts () {
     ])
     renderQueue()
     showQueueView()
-    hint.textContent = 'Active area loaded for counting.'
+    hint.textContent = 'Active location loaded for counting.'
   }
 
   btnBuildCounts.addEventListener('click', openBuildModal)
+
   kBuildModalClose.addEventListener('click', closeBuildModal)
   kBuildModal.addEventListener('click', e => {
     if (e.target === kBuildModal) closeBuildModal()
   })
-  kBuildSearch.addEventListener('input', () => renderBuildRows(kBuildSearch.value))
-  kBuildSelectAll.addEventListener('click', () => {
-    buildSelectedIds = new Set(locations.map(loc => Number(loc.id)))
+
+  kBuildSearch.addEventListener('input', () => {
     renderBuildRows(kBuildSearch.value)
   })
+
+  kBuildScan.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+
+    const scan = String(kBuildScan.value || '').trim().toUpperCase()
+    if (!scan) return
+
+    const loc = visibleLocations(kBuildSearch.value).find(l => String(l.code || '').toUpperCase() === scan)
+    if (!loc) {
+      setMsg(`Location not found or already added: ${scan}`, true)
+      return
+    }
+
+    buildSelectedIds.add(Number(loc.id))
+    renderBuildRows(kBuildSearch.value)
+    setMsg(`Selected ${scan}.`)
+    kBuildScan.value = ''
+  })
+
+  kBuildSelectVisible.addEventListener('click', () => {
+    for (const loc of visibleLocations(kBuildSearch.value)) {
+      buildSelectedIds.add(Number(loc.id))
+    }
+    renderBuildRows(kBuildSearch.value)
+  })
+
+  kBuildClearVisible.addEventListener('click', () => {
+    for (const loc of visibleLocations(kBuildSearch.value)) {
+      buildSelectedIds.delete(Number(loc.id))
+    }
+    renderBuildRows(kBuildSearch.value)
+  })
+
   kBuildBody.addEventListener('change', e => {
     const pick = e.target.closest('[data-build-pick]')
     if (!pick) return
+
     const id = Number(pick.dataset.buildPick || 0)
     if (!id) return
+
     if (pick.checked) buildSelectedIds.add(id)
     else buildSelectedIds.delete(id)
   })
-  kBuildApply.addEventListener('click', () => {
-    buildQueueFromSelectedIds()
-    closeBuildModal()
-    setMsg(queue.length ? `Built queue with ${queue.length} area(s).` : 'No areas selected.')
+
+  kAddGroup.addEventListener('click', addGroup)
+  kAddSelectedToGroup.addEventListener('click', addSelectedToGroup)
+  kAddLooseLocations.addEventListener('click', addSelectedAsTopLevel)
+  kBuildApply.addEventListener('click', applyStructure)
+
+  kTreeBody.addEventListener('dragstart', e => {
+    const row = e.target.closest('[data-tree-key]')
+    if (!row) return
+    draggedTreeKey = String(row.dataset.treeKey || '')
   })
 
-  btnReorderCounts.addEventListener('click', openReorderModal)
-  kReorderModalClose.addEventListener('click', closeReorderModal)
-  kReorderModal.addEventListener('click', e => {
-    if (e.target === kReorderModal) closeReorderModal()
-  })
-  kReorderDone.addEventListener('click', () => {
-    closeReorderModal()
-    renderQueue()
-    setMsg('Count queue reordered.')
+  kTreeBody.addEventListener('dragover', e => {
+    const row = e.target.closest('[data-tree-key]')
+    if (!row) return
+    const from = draftTree.find(n => n.key === draggedTreeKey)
+    const to = draftTree.find(n => n.key === String(row.dataset.treeKey || ''))
+    if (!from || !to) return
+    if (from.type !== 'group' && from.type !== 'location') return
+    if (to.type !== 'group' && to.type !== 'location') return
+    e.preventDefault()
   })
 
-  kReorderBody.addEventListener('dragstart', e => {
-    const row = e.target.closest('[data-reorder-code]')
-    if (!row) return
-    draggedQueueCode = String(row.dataset.reorderCode || '')
-  })
-  kReorderBody.addEventListener('dragover', e => {
-    const row = e.target.closest('[data-reorder-code]')
+  kTreeBody.addEventListener('drop', e => {
+    const row = e.target.closest('[data-tree-key]')
     if (!row) return
     e.preventDefault()
+    moveDraftTopLevel(draggedTreeKey, String(row.dataset.treeKey || ''))
+    draggedTreeKey = null
   })
-  kReorderBody.addEventListener('drop', e => {
-    const row = e.target.closest('[data-reorder-code]')
-    if (!row) return
-    e.preventDefault()
-    reorderQueue(draggedQueueCode, String(row.dataset.reorderCode || ''))
-    draggedQueueCode = null
-  })
-  kReorderBody.addEventListener('dragend', () => {
-    draggedQueueCode = null
+
+  kTreeBody.addEventListener('dragend', () => {
+    draggedTreeKey = null
   })
 
   queueBody.addEventListener('click', e => {
-    const btn = e.target.closest('[data-load-queue]')
+    const btn = e.target.closest('[data-load-location]')
     if (!btn) return
-    loadAreaIntoEntry(String(btn.dataset.loadQueue || ''))
+    loadLocationIntoEntry(String(btn.dataset.loadLocation || ''))
   })
 
   btnStartCount.addEventListener('click', () => {
-    if (!queue.length) return setMsg('Build the count queue first.', true)
-    loadAreaIntoEntry(queue[0].code)
+    const first = flattenStructureLocations(structure)[0]
+    if (!first) return setMsg('Build the count structure first.', true)
+    loadLocationIntoEntry(first.code)
   })
 
   btnBackToQueue.addEventListener('click', () => {
@@ -606,13 +768,13 @@ export async function mountCounts () {
     renderQueue()
   })
 
-  btnPrintSheets.addEventListener('click', printQueueSheets)
-  btnSave.addEventListener('click', saveCountsForActiveArea)
+  btnPrintSheets.addEventListener('click', printSheets)
+  btnSave.addEventListener('click', saveCountsForActiveLocation)
 
   btnFinalizeCounts.addEventListener('click', () => {
-    if (!queue.length) return setMsg('Nothing to finalize.', true)
-    const counted = queue.filter(q => q.status === 'Counted').length
-    setMsg(`Finalize step not wired yet. ${counted} of ${queue.length} area(s) counted.`)
+    const total = flattenStructureLocations(structure).length
+    if (!total) return setMsg('Nothing to finalize.', true)
+    setMsg(`Finalize step not wired yet. ${total} location(s) in structure.`)
   })
 
   await loadData()

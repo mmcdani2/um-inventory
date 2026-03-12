@@ -7,7 +7,7 @@
       <div>
         <h2 style="margin: 0 0 6px 0;">Inventory Counts</h2>
         <div class="hint" style="margin: 0;">
-          Build the queue, reorder it, print sheets, then count one area at a time.
+          Build the count structure like a file tree, then print and count in that same order.
         </div>
       </div>
     </div>
@@ -15,10 +15,9 @@
 
   <div class="card slim">
     <div class="row" style="gap: 8px; flex-wrap: wrap;">
-      <button id="kBuildCounts" class="btn" type="button">Build Counts</button>
-      <button id="kReorderCounts" class="btn" type="button" disabled>Reorder Counts</button>
+      <button id="kBuildCounts" class="btn btn-primary" type="button">Build Count Structure</button>
       <button id="kPrintSheets" class="btn" type="button" disabled>Print Count Sheets</button>
-      <button id="kStartCount" class="btn btn-primary" type="button" disabled>Start Count</button>
+      <button id="kStartCount" class="btn" type="button" disabled>Start Count</button>
       <button id="kFinalizeCounts" class="btn" type="button" disabled>Finalize Counts</button>
     </div>
 
@@ -31,9 +30,9 @@
       style="justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;"
     >
       <div>
-        <h3 style="margin: 0 0 4px 0;">Count Queue</h3>
+        <h3 style="margin: 0 0 4px 0;">Count Structure</h3>
         <div id="kQueueHint" class="hint" style="margin: 0;">
-          No areas selected yet.
+          No count structure built yet.
         </div>
       </div>
     </div>
@@ -43,13 +42,14 @@
         <thead>
           <tr>
             <th style="width: 56px;">#</th>
-            <th>Area</th>
+            <th style="width: 120px;">Type</th>
+            <th>Name</th>
             <th style="width: 140px;">Status</th>
           </tr>
         </thead>
         <tbody id="kQueueBody">
           <tr>
-            <td colspan="3" class="hint">No count queue built yet.</td>
+            <td colspan="4" class="hint">No count structure built yet.</td>
           </tr>
         </tbody>
       </table>
@@ -64,12 +64,12 @@
       <div>
         <h3 style="margin: 0 0 4px 0;">Count Entry</h3>
         <div id="kHint" class="hint" style="margin: 0;">
-          Active area loaded for counting.
+          Active location loaded for counting.
         </div>
       </div>
 
       <div class="row" style="gap: 8px;">
-        <button id="kBackToQueue" class="btn" type="button">Back to Queue</button>
+        <button id="kBackToQueue" class="btn" type="button">Back to Structure</button>
         <button id="kSave" class="btn btn-primary" type="button" disabled>Save Counts</button>
       </div>
     </div>
@@ -93,7 +93,7 @@
     </div>
 
     <div id="kActiveAreaFooter" class="hint" style="margin-top: 12px;">
-      No active area
+      No active location
     </div>
   </div>
 
@@ -103,78 +103,105 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="kBuildModalTitle"
-      style="max-width: 760px; width: 100%;"
+      style="max-width: 1200px; width: 100%;"
     >
       <div class="modal-header">
-        <h3 id="kBuildModalTitle">Build Count Queue</h3>
+        <h3 id="kBuildModalTitle">Build Count Structure</h3>
       </div>
 
-      <div class="row" style="justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-        <label class="field" style="margin: 0; flex: 1 1 320px;">
-          <div class="lbl">Search Areas</div>
-          <input id="kBuildSearch" class="input" type="text" placeholder="Search code or name..." />
-        </label>
+      <div
+        style="
+          display: grid;
+          grid-template-columns: minmax(320px, 420px) minmax(420px, 1fr);
+          gap: 16px;
+          align-items: start;
+        "
+      >
+        <div class="card slim" style="margin: 0;">
+          <div class="row" style="justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <div>
+              <div style="font-weight: 700;">Available Locations</div>
+              <div class="hint">Scan or select real locations to add into the structure.</div>
+            </div>
+          </div>
 
-        <button id="kBuildSelectAll" class="btn" type="button">Select All</button>
-      </div>
+          <label class="field" style="margin-bottom: 10px;">
+            <div class="lbl">Scan Location</div>
+            <input id="kBuildScan" class="input" type="text" placeholder="Scan location code..." />
+          </label>
 
-      <div class="table-wrap" style="max-height: 420px; overflow: auto;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 56px;">Add</th>
-              <th>Area</th>
-            </tr>
-          </thead>
-          <tbody id="kBuildBody">
-            <tr>
-              <td colspan="2" class="hint">No areas found.</td>
-            </tr>
-          </tbody>
-        </table>
+          <label class="field" style="margin-bottom: 10px;">
+            <div class="lbl">Search Locations</div>
+            <input id="kBuildSearch" class="input" type="text" placeholder="Search code or name..." />
+          </label>
+
+          <div class="row" style="gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button id="kBuildSelectVisible" class="btn" type="button">Select Visible</button>
+            <button id="kBuildClearVisible" class="btn" type="button">Clear Visible</button>
+          </div>
+
+          <div class="table-wrap" style="max-height: 420px; overflow: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 56px;">Add</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody id="kBuildBody">
+                <tr>
+                  <td colspan="2" class="hint">No locations found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card slim" style="margin: 0;">
+          <div class="row" style="justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <div>
+              <div style="font-weight: 700;">Count Tree</div>
+              <div class="hint">Create groups and place locations under them in count order.</div>
+            </div>
+          </div>
+
+          <div class="row" style="gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <input id="kNewGroupName" class="input" type="text" placeholder="New group name, e.g. OFF" style="max-width: 260px;" />
+            <button id="kAddGroup" class="btn" type="button">Add Group</button>
+            <button id="kAddSelectedToGroup" class="btn" type="button">Add Selected to Group</button>
+            <button id="kAddLooseLocations" class="btn" type="button">Add Selected as Top-Level</button>
+          </div>
+
+          <label class="field" style="margin-bottom: 12px; max-width: 320px;">
+            <div class="lbl">Target Group</div>
+            <select id="kTargetGroup" class="input">
+              <option value="">Select group...</option>
+            </select>
+          </label>
+
+          <div class="table-wrap" style="max-height: 460px; overflow: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 56px;">#</th>
+                  <th style="width: 120px;">Type</th>
+                  <th>Name</th>
+                  <th style="width: 140px;">Order</th>
+                </tr>
+              </thead>
+              <tbody id="kTreeBody">
+                <tr>
+                  <td colspan="4" class="hint">No groups or locations in the count tree yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="row" style="justify-content: flex-end; gap: 8px; margin-top: 12px;">
         <button id="kBuildModalClose" class="btn btn-secondary" type="button">Close</button>
-        <button id="kBuildApply" class="btn btn-primary" type="button">Apply Queue</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="kReorderModal" class="modal-backdrop hidden" aria-hidden="true">
-    <div
-      class="modal-card"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="kReorderModalTitle"
-      style="max-width: 760px; width: 100%;"
-    >
-      <div class="modal-header">
-        <h3 id="kReorderModalTitle">Reorder Count Queue</h3>
-      </div>
-
-      <div class="hint" style="margin-bottom: 12px;">Drag and drop areas into the order you want to count.</div>
-
-      <div class="table-wrap" style="max-height: 420px; overflow: auto;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 56px;">#</th>
-              <th>Area</th>
-              <th style="width: 140px;">Order</th>
-            </tr>
-          </thead>
-          <tbody id="kReorderBody">
-            <tr>
-              <td colspan="3" class="hint">No areas in queue.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="row" style="justify-content: flex-end; gap: 8px; margin-top: 12px;">
-        <button id="kReorderModalClose" class="btn btn-secondary" type="button">Close</button>
-        <button id="kReorderDone" class="btn btn-primary" type="button">Done</button>
+        <button id="kBuildApply" class="btn btn-primary" type="button">Apply Structure</button>
       </div>
     </div>
   </div>
