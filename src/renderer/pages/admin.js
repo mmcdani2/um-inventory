@@ -1,4 +1,4 @@
-// src/renderer/pages/admin.js
+﻿﻿// src/renderer/pages/admin.js
 export async function mountAdmin () {
   const btnReset = document.getElementById('btnResetDb')
   const msg = document.getElementById('adminMsg')
@@ -392,7 +392,7 @@ export async function mountAdmin () {
 
       try {
         await window.api.dbReset()
-        setMsg('Reset requested…')
+        setMsg('Reset requested...')
       } catch (e) {
         setMsg(e?.message || 'Reset failed.', true)
       }
@@ -423,10 +423,15 @@ export async function mountAdmin () {
         const res = await window.api.locationsImportCsv({ csvText })
 
         setToolsMsg(
-          `Locations imported. Inserted: ${res?.inserted ?? 0}, Skipped: ${
-            res?.skipped ?? 0
-          }, Total: ${res?.total ?? 0}`
+          `Locations imported. Inserted: ${res?.inserted ?? 0}, Updated: ${
+            res?.updated ?? 0
+          }, Skipped: ${res?.skipped ?? 0}, Total: ${res?.total ?? 0}`
         )
+
+        locCsvFile.value = ''
+        locCsvName.textContent = 'No file selected'
+        btnImportLocCsv.disabled = true
+        closeModal(locationsModal)
 
         window.dispatchEvent(new CustomEvent('data:changed'))
       } catch (e) {

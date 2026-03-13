@@ -208,23 +208,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle('db:reset', async () => {
     try {
-      // Close DB so the file isn't locked (WAL mode)
-      try {
-        db?.close?.()
-      } catch {}
+      dbLayer.resetDb(db)
+      clearSession(app)
 
-      const dbPath = getDbPath()
-      const wal = `${dbPath}-wal`
-      const shm = `${dbPath}-shm`
-
-      // Delete main + WAL files if present
-      for (const p of [dbPath, wal, shm]) {
-        try {
-          fs.unlinkSync(p)
-        } catch {}
-      }
-
-      // Relaunch clean
       app.relaunch()
       app.exit(0)
 

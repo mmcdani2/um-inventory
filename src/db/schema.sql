@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS app_meta (
   value TEXT NOT NULL
 );
 
--- Employees (local auth identity)
+-- Employees (local auth identity + audit attribution)
 CREATE TABLE IF NOT EXISTS employees (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS employees (
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(is_active);
 
 -- Catalog master
 CREATE TABLE IF NOT EXISTS items (
@@ -51,13 +53,21 @@ CREATE TABLE IF NOT EXISTS item_barcodes (
 
 CREATE INDEX IF NOT EXISTS idx_item_barcodes_item_id ON item_barcodes(item_id);
 
--- Locations/bins
+-- Locations / bins / hierarchy nodes
 CREATE TABLE IF NOT EXISTS locations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  code TEXT NOT NULL UNIQUE,             -- e.g. "SHOP-A1", "TRUCK-01"
+  code TEXT NOT NULL UNIQUE,             -- deterministic physical key
   name TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  parent_location_id INTEGER,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  count_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (parent_location_id) REFERENCES locations(id) ON DELETE SET NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_locations_parent_location_id ON locations(parent_location_id);
+CREATE INDEX IF NOT EXISTS idx_locations_sort_order ON locations(sort_order);
+CREATE INDEX IF NOT EXISTS idx_locations_count_enabled ON locations(count_enabled);
 
 -- On-hand by item+location (fast reads)
 CREATE TABLE IF NOT EXISTS inventory_balances (
@@ -73,37 +83,24 @@ CREATE TABLE IF NOT EXISTS inventory_balances (
 CREATE INDEX IF NOT EXISTS idx_balances_item ON inventory_balances(item_id);
 CREATE INDEX IF NOT EXISTS idx_balances_location ON inventory_balances(location_id);
 
--- Employees (for audit attribution)
-CREATE TABLE IF NOT EXISTS employees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  is_active INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_employees_active ON employees(is_active);
-
 -- Ledger of all movements (source of truth)
 -- type: 'RECEIVE' | 'CHECKOUT' | 'ADJUST'
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT NOT NULL,
   occurred_at TEXT NOT NULL DEFAULT (datetime('now')),
-
-  employee_id INTEGER,              -- FK added via migration; app enforces required
-user_initials TEXT NOT NULL DEFAULT ''
-
+  employee_id INTEGER NOT NULL DEFAULT 0,
+  user_initials TEXT NOT NULL DEFAULT '',
   vendor TEXT NOT NULL DEFAULT '',
   po_number TEXT NOT NULL DEFAULT '',
-
   job_number TEXT NOT NULL DEFAULT '',
   tech TEXT NOT NULL DEFAULT '',
-
   notes TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_tx_occurred_at ON transactions(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
+CREATE INDEX IF NOT EXISTS idx_tx_employee_id ON transactions(employee_id);
 
 -- Line items for each transaction
 -- qty_sign convention:
@@ -126,12 +123,11 @@ CREATE INDEX IF NOT EXISTS idx_txl_tx ON transaction_lines(transaction_id);
 CREATE INDEX IF NOT EXISTS idx_txl_item ON transaction_lines(item_id);
 CREATE INDEX IF NOT EXISTS idx_txl_location ON transaction_lines(location_id);
 
--- Optional: saved cycle count events (for AvsT reporting clarity)
+-- Saved cycle count events (for AvsT reporting clarity)
 CREATE TABLE IF NOT EXISTS cycle_counts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   counted_at TEXT NOT NULL DEFAULT (datetime('now')),
   user_initials TEXT NOT NULL DEFAULT '',
-
   employee_id INTEGER NOT NULL DEFAULT 0,
   location_id INTEGER NOT NULL,
   notes TEXT NOT NULL DEFAULT '',
@@ -139,6 +135,8 @@ CREATE TABLE IF NOT EXISTS cycle_counts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_cc_counted_at ON cycle_counts(counted_at);
+CREATE INDEX IF NOT EXISTS idx_cc_location ON cycle_counts(location_id);
+CREATE INDEX IF NOT EXISTS idx_cc_employee_id ON cycle_counts(employee_id);
 
 CREATE TABLE IF NOT EXISTS cycle_count_lines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,5 +157,7 @@ CREATE TRIGGER IF NOT EXISTS trg_items_updated_at
 AFTER UPDATE ON items
 FOR EACH ROW
 BEGIN
-  UPDATE items SET updated_at = datetime('now') WHERE id = OLD.id;
+  UPDATE items
+  SET updated_at = datetime('now')
+  WHERE id = OLD.id;
 END;
